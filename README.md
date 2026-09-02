@@ -30,11 +30,15 @@ Quand une nouvelle version de `Code.gs` est disponible :
 1. Collez le nouveau `Code.gs` dans l'éditeur.
 2. Lancez **`migrer()`** une fois — c'est sans danger, ça ne recrée pas la base.
    (Ajoute les nouveaux onglets/réglages, génère les clés VAPID, réinstalle les
-   déclencheurs.)
+   déclencheurs.) La version qui introduit la sauvegarde hebdo demande une
+   **réautorisation Drive** — c'est normal.
 3. (facultatif) Lancez **`testCryptoPush()`** : doit afficher `OK` dans les logs —
    c'est la vérification que la signature des notifications fonctionne.
 4. Déployer → **Gérer les déploiements** → crayon ✏️ sur le déploiement existant →
    Version : « Nouvelle version » → Déployer. **L'URL ne change pas.**
+
+Si les rappels arrivent à la mauvaise heure : Apps Script → Projet → Paramètres →
+fuseau `Europe/Paris` (les logs de `migrer()` affichent le fuseau actuel).
 
 ## 2. Le frontend
 
@@ -42,9 +46,13 @@ Poussez tout le dossier (`index.html`, `manifest.json`, `sw.js`, `.nojekyll`,
 les icônes) à la racine d'un dépôt GitHub, puis activez Pages dans
 Settings → Pages (source : branche `main`, dossier `/`).
 
-Sur le téléphone : ouvrez l'URL obtenue → **Réglages** (roue crantée) → collez
-l'URL `/exec` → Enregistrer. Puis menu du navigateur → **Ajouter à l'écran d'accueil**.
-Chacun choisit son prénom dans Réglages → « Je suis ».
+Sur le premier téléphone : ouvrez l'URL obtenue → **Réglages** (roue crantée) →
+collez l'URL `/exec` → Enregistrer. Puis menu du navigateur → **Ajouter à l'écran
+d'accueil**. Chacun choisit son prénom dans Réglages → « Je suis » (une question au
+1er lancement si ce n'est pas fait).
+
+Pour l'autre personne : Réglages → **Partager le lien** envoie une URL qui contient
+déjà le serveur — elle n'a qu'à l'ouvrir et ajouter à l'écran d'accueil.
 
 Pour publier une modif : `git push`, GitHub Pages se met à jour tout seul en ~1 min.
 L'app affiche un bandeau « Nouvelle version — appuyer pour recharger » quand c'est prêt.
@@ -71,7 +79,7 @@ le contenu via `?action=digest`.
 
 ## 4. Le Sheet
 
-Quatre onglets, éditables à la main si besoin.
+Cinq onglets, éditables à la main si besoin.
 
 **Taches** — `id`, `nom`, `zone`, `qui`, `duree`, `mode`, `regle`, `actif`
 
@@ -96,11 +104,14 @@ prévue. Appui long sur une tâche → détail (dernière fois, qui) + « Modifi
 **Journal** — une ligne par tâche cochée. Décocher supprime la ligne.
 
 **Config** — `personnes`, `destinataires`, `mail_quotidien`, `mail_soir`,
-`mail_hebdo`, `mail_mensuel`, `vacances`, `heure_matin`, `heure_soir`. Les booléens
-et les heures se pilotent depuis l'app.
+`mail_hebdo`, `mail_mensuel`, `vacances`, `heure_matin`, `heure_soir`,
+`verrou_jours` (au-delà, les jours passés sont en lecture seule ; `999` = jamais),
+`sauvegarde_hebdo`. Tout se pilote depuis l'app.
 
 **Push** — un abonnement aux notifications par appareil (`endpoint`, clés, `qui`,
 `matin`, `soir`). Géré automatiquement ; les endpoints morts sont purgés à l'envoi.
+
+**Snooze** — `id`, `jusqua` : les tâches « Pas aujourd'hui » (partagé, purgé tout seul).
 
 ## 5. Les thèmes
 
@@ -113,8 +124,10 @@ Propre à chaque appareil. Tous sauf Nuit suivent le mode clair/sombre du télé
   réseau (ou à la réouverture de l'app). Un bandeau indique le nombre en attente.
 - Les tâches à intervalle sont projetées à titre indicatif dans le Planning (date
   prévue = dernière fois + N jours) ; la vraie date dépend du moment où on coche.
-- « Pas aujourd'hui » et le thème sont propres à chaque appareil (stockés en local,
-  pas dans le Sheet).
+- Le thème, l'activation des notifications et le choix matin/soir sont propres à
+  chaque appareil (le reste — tâches, journal, « Pas aujourd'hui », heures — est commun).
+- Une copie datée du Sheet est faite chaque dimanche dans un dossier
+  « Ménage — sauvegardes » du Drive (4 dernières gardées ; désactivable).
 - Après un `Déployer`, choisissez toujours « Gérer les déploiements » puis modifiez
   le déploiement existant. Un nouveau déploiement change l'URL et casse le raccourci.
 - Si le navigateur bloque les appels pour cause de CORS, vérifiez que l'accès est
