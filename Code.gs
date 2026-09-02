@@ -35,7 +35,7 @@ function setup() {
 
   var c = ss.insertSheet('Config');
   c.getRange(1, 1, 1, 2).setValues([['cle', 'valeur']]).setFontWeight('bold');
-  c.getRange(2, 1, 10, 2).setValues([
+  c.getRange(2, 1, 12, 2).setValues([
     ['personnes', 'Antho,Alexandra'],
     ['destinataires', Session.getActiveUser().getEmail()],
     ['mail_quotidien', 'oui'],
@@ -45,10 +45,13 @@ function setup() {
     ['vacances', 'non'],
     ['heure_matin', '7'],
     ['heure_soir', '19'],
-    ['heure_envoi', '7']
+    ['heure_envoi', '7'],
+    ['verrou_jours', '2'],
+    ['sauvegarde_hebdo', 'oui']
   ]);
 
   pushSheet_();
+  snoozeSheet_();
   vapidKeys_();
   installerDeclencheurs();
   Logger.log('Base créée : ' + ss.getUrl());
@@ -64,6 +67,22 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('digestSoir').timeBased().everyDays(1).atHour(hs).create();
   ScriptApp.newTrigger('mailHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(hm).create();
   ScriptApp.newTrigger('mailMensuel').timeBased().onMonthDay(1).atHour(hm).create();
+  ScriptApp.newTrigger('sauvegarde').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
+}
+
+/* copie datée du Sheet dans un dossier "Ménage — sauvegardes", garde les 4 dernières */
+function sauvegarde() {
+  if (String(config().sauvegarde_hebdo || 'oui').toLowerCase() === 'non') return;
+  var src = DriveApp.getFileById(PROP.getProperty('SS_ID'));
+  var dossiers = DriveApp.getFoldersByName('Ménage — sauvegardes');
+  var dossier = dossiers.hasNext() ? dossiers.next() : DriveApp.createFolder('Ménage — sauvegardes');
+  var nom = 'Ménage ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  src.makeCopy(nom, dossier);
+  var copies = [];
+  var it = dossier.getFiles();
+  while (it.hasNext()) copies.push(it.next());
+  copies.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  copies.slice(4).forEach(function (f) { f.setTrashed(true); });
 }
 
 /**
@@ -75,9 +94,11 @@ function migrer() {
   // la colonne "regle" doit rester du texte, sinon Sheets convertit "2026-09-15" en date
   ss.getSheetByName('Taches').getRange('G:G').setNumberFormat('@');
   // nouvelles clés de config (ne touche pas à celles qui existent déjà)
-  [['mail_soir', 'non'], ['heure_matin', config().heure_envoi || '7'], ['heure_soir', '19']]
+  [['mail_soir', 'non'], ['heure_matin', config().heure_envoi || '7'], ['heure_soir', '19'],
+   ['verrou_jours', '2'], ['sauvegarde_hebdo', 'oui']]
     .forEach(function (kv) { if (config()[kv[0]] === undefined) setConfig_(kv[0], kv[1]); });
   pushSheet_();
+  snoozeSheet_();
   vapidKeys_();
   installerDeclencheurs();
   Logger.log('Migration OK — clé VAPID publique : ' + vapidKeys_().pub);
@@ -148,6 +169,7 @@ function router_(action, p) {
     case 'unsubscribePush': return unsubscribePush_(p.endpoint);
     case 'digest': return digest_(p.moment, p.qui);
     case 'testPush': return envoyerPush_(p.moment || 'matin');
+    case 'snooze': return snooze_(p.id, p.jusqua);
     default: throw new Error('Action inconnue : ' + action);
   }
 }
@@ -160,8 +182,18 @@ function paquet_() {
     taches: lire_('Taches'),
     journal: journal,
     config: config(),
+    snooze: snoozeMap_(),
     aujourdhui: ymd_(new Date())
   };
+}
+
+function verrou_() { return parseInt(config().verrou_jours || '2', 10); }
+
+function jourVerrouille_(dateStr) {
+  var v = verrou_();
+  if (!v || v > 900) return false;
+  var diff = Math.round((parseYmd_(ymd_(new Date())) - parseYmd_(dateStr)) / 86400000);
+  return diff >= v;
 }
 
 function estActif_(t) {
@@ -171,6 +203,7 @@ function estActif_(t) {
 }
 
 function toggle_(p) {
+  if (jourVerrouille_(p.date)) throw new Error('Jour verrouillé');
   var sh = ss_().getSheetByName('Journal');
   var v = sh.getDataRange().getValues();
   for (var i = v.length - 1; i >= 1; i--) {
@@ -183,6 +216,42 @@ function toggle_(p) {
   var retard = Math.round((new Date() - parseYmd_(p.date)) / 86400000);
   sh.appendRow([new Date(), p.id, p.date, p.qui || '', retard]);
   return { ajoute: true };
+}
+
+/* ------------------------------------------------ snooze (partagé) */
+
+function snoozeSheet_() {
+  var ss = ss_();
+  var sh = ss.getSheetByName('Snooze');
+  if (!sh) {
+    sh = ss.insertSheet('Snooze');
+    sh.getRange(1, 1, 1, 2).setValues([['id', 'jusqua']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function snoozeMap_() {
+  var today = ymd_(new Date());
+  var o = {};
+  var sh = ss_().getSheetByName('Snooze');
+  if (!sh) return o;
+  lire_('Snooze').forEach(function (r) {
+    var j = r.jusqua instanceof Date ? ymd_(r.jusqua) : String(r.jusqua);
+    if (r.id && j > today) o[r.id] = j;   // masquée jusqu'à (non compris) j
+  });
+  return o;
+}
+
+function snooze_(id, jusqua) {
+  var sh = snoozeSheet_();
+  sh.getRange('B:B').setNumberFormat('@');
+  var v = sh.getDataRange().getValues();
+  for (var i = v.length - 1; i >= 1; i--) {
+    if (String(v[i][0]) === String(id)) sh.deleteRow(i + 1);
+  }
+  if (jusqua) sh.appendRow([id, String(jusqua)]);
+  return { ok: true };
 }
 
 function saveTache_(t) {

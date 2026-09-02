@@ -180,6 +180,8 @@ nav button.on{color:var(--accent)}
   border:1px solid var(--line);border-radius:10px;padding:8px 11px;background:var(--page);max-width:56%}
 .champ input.large{max-width:100%;width:100%}
 .row.off{opacity:.5}
+.row.verr .box{opacity:.4}
+.row.verr:not(.ok) .nom{color:var(--muted)}
 h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .aide{font-size:12.5px;color:var(--muted);margin:2px 0 12px;line-height:1.45}
 .btn{border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;
@@ -264,6 +266,15 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 const JOURS = ['dim','lun','mar','mer','jeu','ven','sam'];
 const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const MOIS_L = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+/* lien de partage : #api=<url/exec> renseigne le serveur automatiquement */
+(function(){
+  const m = location.hash.match(/api=([^&]+)/);
+  if(m){
+    try{ localStorage.setItem('api', decodeURIComponent(m[1])); }catch(e){}
+    history.replaceState(null, '', location.pathname);
+  }
+})();
 
 const S = {
   api: localStorage.getItem('api') || '',
@@ -424,12 +435,16 @@ function sheet(html, actions){
 function fermerSheet(){ document.getElementById('sheet').hidden = true; }
 
 function snoozer(id){
-  const lire = () => JSON.parse(localStorage.getItem('snooze') || '{}');
-  const s = lire(); s[id] = ymd(plus(new Date(), 1));
-  localStorage.setItem('snooze', JSON.stringify(s));
+  const j = ymd(plus(new Date(), 1));
+  if(S.data) (S.data.snooze = S.data.snooze || {})[id] = j;
+  localStorage.setItem('cache', JSON.stringify(S.data));
   rendre();
+  envoyer({action:'snooze', id, jusqua:j});
   toast('Masquée jusqu\'à demain', { label:'Annuler', fn:() => {
-    const s2 = lire(); delete s2[id]; localStorage.setItem('snooze', JSON.stringify(s2)); rendre();
+    if(S.data && S.data.snooze) delete S.data.snooze[id];
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    rendre();
+    envoyer({action:'snooze', id, jusqua:''});
   }});
 }
 
@@ -524,8 +539,15 @@ function retard(t, dateStr){
 const faite = (id, dateStr) => (S.data.journal||[]).some(r => r.id===id && r.date===dateStr);
 
 function masquee(id, dateStr){
-  const s = JSON.parse(localStorage.getItem('snooze') || '{}');
-  return s[id] && s[id] >= dateStr;
+  const s = (S.data && S.data.snooze) || {};
+  return s[id] && s[id] > dateStr;   // masquée jusqu'à (non compris) s[id]
+}
+
+function modifiable(dateStr){
+  const v = parseInt((S.data && S.data.config && S.data.config.verrou_jours) || '2', 10);
+  if(!v || v > 900) return true;
+  if(dateStr >= ymd(new Date())) return true;
+  return Math.round((parseYmd(ymd(new Date())) - parseYmd(dateStr)) / 86400000) < v;
 }
 
 function estActif(t){
@@ -612,14 +634,15 @@ function progres(fait, total){
 }
 
 function ligne(t, dateStr){
+  const verr = !modifiable(dateStr);
   const el = document.createElement('div');
-  el.className = 'row' + (t.faite ? ' ok' : '');
+  el.className = 'row' + (t.faite ? ' ok' : '') + (verr ? ' verr' : '');
   el.innerHTML =
     '<span class="box"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></span>' +
     '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
     (t.retard>0 ? '<span class="tag">+'+t.retard+' j</span>' : '') +
     (t.qui ? '<span class="pers"></span>' :
-      (!t.faite && _enRetard ? '<span class="hint">plutôt ' + esc(_enRetard) + '</span>' : ''));
+      (!verr && !t.faite && _enRetard ? '<span class="hint">plutôt ' + esc(_enRetard) + '</span>' : ''));
   el.querySelector('.nom').textContent = t.nom;
   const bouts = [t.zone, t.duree+' min'];
   if(t.mode === 'intervalle'){
@@ -648,7 +671,11 @@ function ligne(t, dateStr){
   el.addEventListener('pointerup', stop);
   el.addEventListener('pointercancel', stop);
   el.addEventListener('contextmenu', e => e.preventDefault());
-  el.onclick = () => { if(longPress){ longPress = false; return; } cocher(t, dateStr, el); };
+  el.onclick = () => {
+    if(longPress){ longPress = false; return; }
+    if(verr){ toast('Jour verrouillé — modifiable dans Réglages'); return; }
+    cocher(t, dateStr, el);
+  };
   return el;
 }
 
@@ -971,6 +998,7 @@ function vReglages(v){
     <p class="aide">L'adresse en /exec donnée par Apps Script au déploiement.</p>
     <div class="champ"><input type="text" class="large" id="api" placeholder="https://script.google.com/…/exec"></div>
     <button class="btn" id="saveApi">Enregistrer et charger</button>
+    ${S.api ? '<button class="btn sec" id="partager">Partager le lien (avec le serveur)</button>' : ''}
   </div>
   ${(_installEvt && !matchMedia('(display-mode: standalone)').matches) ? `<div class="bloc">
     <h2>Installer</h2>
@@ -994,6 +1022,14 @@ function vReglages(v){
     <h2>Tâches</h2>
     <p class="aide">Ajouter, modifier, désactiver ou supprimer une tâche.</p>
     <button class="btn sec" id="gererTaches">Gérer les tâches →</button>
+    <div class="champ"><span>Verrouiller les jours passés</span>
+      <select id="verrou">
+        <option value="1">après 1 jour</option>
+        <option value="2">après 2 jours</option>
+        <option value="7">après 1 semaine</option>
+        <option value="999">jamais</option>
+      </select></div>
+    <p class="aide" style="margin-bottom:0">Passé ce délai, on ne peut plus cocher/décocher une tâche.</p>
   </div>
   <div class="bloc">
     <h2>Notifications</h2>
@@ -1012,11 +1048,31 @@ function vReglages(v){
     ${sw('mail_mensuel','Récap mensuel',c)}
     ${sw('vacances','Mode vacances',c)}
     <p class="aide">Le mode vacances suspend tous les envois (mails et notifications) sans rien effacer.</p>
+  </div>
+  <div class="bloc">
+    <h2>Sauvegarde</h2>
+    ${sw('sauvegarde_hebdo','Copie hebdomadaire du Sheet',c)}
+    <p class="aide" style="margin-bottom:0">Une copie datée dans un dossier « Ménage — sauvegardes » de ton Drive, chaque dimanche. Les 4 dernières sont conservées.</p>
   </div>`;
 
   const api_ = v.querySelector('#api'); api_.value = S.api;
   v.querySelector('#saveApi').onclick = () => {
     S.api = api_.value.trim(); localStorage.setItem('api', S.api); majConf(); charger();
+  };
+  const pb = v.querySelector('#partager');
+  if(pb) pb.onclick = async () => {
+    const url = location.origin + location.pathname + '#api=' + encodeURIComponent(S.api);
+    try{
+      if(navigator.share) await navigator.share({ title:'Ménage', url });
+      else { await navigator.clipboard.writeText(url); toast('Lien copié'); }
+    }catch(e){}
+  };
+  const vr = v.querySelector('#verrou');
+  vr.value = ['1','2','7','999'].includes(String(c.verrou_jours)) ? String(c.verrou_jours) : '2';
+  vr.onchange = () => {
+    if(S.data) S.data.config.verrou_jours = vr.value;
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    envoyer({action:'setConfig', cle:'verrou_jours', valeur:vr.value});
   };
   const ib = v.querySelector('#install');
   if(ib) ib.onclick = async () => {
@@ -1320,13 +1376,7 @@ if('serviceWorker' in navigator){
   });
 }
 appliquerTheme(S.theme);
-try{
-  const snz = JSON.parse(localStorage.getItem('snooze') || '{}');
-  const auj = ymd(new Date());
-  let chg = false;
-  for(const k in snz) if(snz[k] < auj){ delete snz[k]; chg = true; }
-  if(chg) localStorage.setItem('snooze', JSON.stringify(snz));
-}catch(e){}
+try{ localStorage.removeItem('snooze'); }catch(e){}   // le snooze est désormais partagé (serveur)
 if(S.data) rendre();
 S.api ? charger() : (S.vue = 'reglages', rendre());
 </script>
