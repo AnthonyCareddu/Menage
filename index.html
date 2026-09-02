@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ménage</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f6b4f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --page:#eef1ef; --card:#fff; --ink:#14181b; --muted:#6b7573;
+  --line:#dde2df; --accent:#2f6b4f; --late:#b8730f; --late-bg:#f8efdf;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--page);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:16px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+
+header{padding:22px 20px 14px;background:var(--page);position:sticky;top:0;z-index:5}
+.jour{font-size:13px;color:var(--muted)}
+.compte{display:flex;align-items:baseline;gap:8px;margin-top:2px}
+.gros{font-size:38px;font-weight:600;letter-spacing:-.02em;line-height:1}
+.gros-sub{font-size:14px;color:var(--muted)}
+
+main{padding:0 0 92px}
+.groupe{font-size:12px;color:var(--muted);padding:16px 20px 6px}
+.row{display:flex;align-items:center;gap:14px;padding:14px 20px;
+  background:var(--card);border-top:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:1px solid var(--line)}
+.box{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;transition:background .18s,border-color .18s}
+.box svg{width:14px;height:14px;stroke:#fff;stroke-width:2.6;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .18s}
+.row.ok .box{background:var(--accent);border-color:var(--accent)}
+.row.ok .box svg{opacity:1}
+.txt{flex:1;min-width:0}
+.nom{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.ok .nom{text-decoration:line-through;color:var(--muted)}
+.meta{display:block;font-size:12.5px;color:var(--muted)}
+.tag{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:var(--late-bg);color:var(--late)}
+.pers{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:#e7ece9;color:var(--accent)}
+
+.vide{padding:48px 20px;text-align:center;color:var(--muted)}
+
+.semaine{padding:8px 0}
+.jt{font-size:13px;font-weight:600;padding:18px 20px 2px}
+.jt span{font-weight:400;color:var(--muted)}
+
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:12px 14px}
+.cal .dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0}
+.cell{aspect-ratio:1;background:var(--card);border-radius:8px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px}
+.cell.hors{background:transparent;color:#b3bbb6}
+.cell.today{outline:1.5px solid var(--accent)}
+.pt{width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.pts{display:flex;gap:2px;height:5px}
+
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);
+  background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{border:0;background:none;padding:11px 0 13px;font-size:12px;color:var(--muted)}
+nav button.on{color:var(--accent);font-weight:600}
+
+.bloc{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:16px 20px;margin-top:18px}
+.champ{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0}
+.champ input[type=text],.champ input[type=number],.champ select{
+  border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--page);max-width:56%}
+.champ input[type=text].large{max-width:100%;width:100%}
+h2{font-size:15px;font-weight:600;margin:0 0 6px}
+.aide{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;
+  border-radius:9px;padding:10px 16px;width:100%;margin-top:12px}
+.btn.sec{background:none;color:var(--accent)}
+.sw{position:relative;width:42px;height:24px;border-radius:12px;background:var(--line);flex:none}
+.sw.on{background:var(--accent)}
+.sw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:#fff;transition:transform .18s}
+.sw.on i{transform:translateX(18px)}
+.bandeau{background:var(--late-bg);color:var(--late);font-size:13px;padding:9px 20px;text-align:center}
+.err{color:#a3352d;font-size:13px;padding:6px 0}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="bandeau" class="bandeau" hidden></div>
+<header>
+  <div class="jour" id="dateLabel"></div>
+  <div class="compte"><span class="gros" id="gros">—</span><span class="gros-sub" id="grosSub"></span></div>
+</header>
+
+<main id="vue"></main>
+
+<nav>
+  <button data-v="jour" class="on">Aujourd'hui</button>
+  <button data-v="semaine">Semaine</button>
+  <button data-v="mois">Mois</button>
+  <button data-v="reglages">Réglages</button>
+</nav>
+
+<script>
+const JOURS = ['dim','lun','mar','mer','jeu','ven','sam'];
+const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS_L = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+const S = {
+  api: localStorage.getItem('api') || '',
+  moi: localStorage.getItem('moi') || '',
+  data: JSON.parse(localStorage.getItem('cache') || 'null'),
+  vue: 'jour',
+  ancre: new Date()
+};
+
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const parseYmd = s => { const p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); };
+const plus = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+
+async function api(params){
+  if(!S.api) throw new Error('Adresse du serveur non renseignée');
+  const u = new URL(S.api);
+  Object.entries(params).forEach(([k,v]) => u.searchParams.set(k,v));
+  const r = await fetch(u.toString());
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.erreur);
+  return j.data;
+}
+
+async function charger(){
+  try{
+    S.data = await api({action:'data'});
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    bandeau(null);
+  }catch(e){
+    bandeau(S.data ? 'Hors ligne — données du dernier chargement' : 'Impossible de joindre le serveur');
+  }
+  rendre();
+}
+
+function bandeau(msg){
+  const b = document.getElementById('bandeau');
+  b.hidden = !msg; b.textContent = msg || '';
+}
+
+/* ---------------------------------------------- moteur de récurrence */
+
+function derniereFois(id){
+  let d = null;
+  (S.data.journal||[]).forEach(r => { if(r.id===id && (!d || r.date>d)) d = r.date; });
+  return d;
+}
+
+function estDue(t, dateStr){
+  const d = parseYmd(dateStr);
+  if(t.mode === 'jours')
+    return String(t.regle).split(',').map(s=>s.trim()).includes(JOURS[d.getDay()]);
+  if(t.mode === 'mois'){
+    const dernier = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    return d.getDate() === Math.min(parseInt(t.regle,10), dernier);
+  }
+  if(t.mode === 'intervalle'){
+    const n = parseInt(t.regle,10) || 1;
+    const last = derniereFois(t.id);
+    if(!last) return true;
+    return Math.round((d - parseYmd(last)) / 86400000) >= n;
+  }
+  return false;
+}
+
+function retard(t, dateStr){
+  if(t.mode !== 'intervalle') return 0;
+  const n = parseInt(t.regle,10) || 1;
+  const last = derniereFois(t.id);
+  if(!last) return 0;
+  return Math.max(0, Math.round((parseYmd(dateStr) - parseYmd(last))/86400000) - n);
+}
+
+const faite = (id, dateStr) => (S.data.journal||[]).some(r => r.id===id && r.date===dateStr);
+
+function pourLeJour(dateStr){
+  if(!S.data) return [];
+  return S.data.taches
+    .filter(t => estDue(t, dateStr))
+    .map(t => ({...t, retard: retard(t,dateStr), faite: faite(t.id,dateStr)}))
+    .sort((a,b) => (b.retard-a.retard) || (a.faite-b.faite) || a.nom.localeCompare(b.nom));
+}
+
+/* ------------------------------------------------------------- rendu */
+
+function rendre(){
+  const v = document.getElementById('vue');
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v===S.vue));
+  if(!S.data && S.vue !== 'reglages'){ enTete('','Configuration requise'); v.innerHTML =
+    '<p class="vide">Renseignez l\'adresse du serveur dans Réglages pour démarrer.</p>'; return; }
+  ({jour:vJour, semaine:vSemaine, mois:vMois, reglages:vReglages})[S.vue](v);
+}
+
+function enTete(label, gros, sub){
+  document.getElementById('dateLabel').textContent = label;
+  document.getElementById('gros').textContent = gros;
+  document.getElementById('grosSub').textContent = sub || '';
+}
+
+function ligne(t, dateStr){
+  const el = document.createElement('div');
+  el.className = 'row' + (t.faite ? ' ok' : '');
+  el.innerHTML =
+    '<span class="box"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></span>' +
+    '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
+    (t.retard>0 ? '<span class="tag">+'+t.retard+' j</span>' : '') +
+    (t.qui ? '<span class="pers"></span>' : '');
+  el.querySelector('.nom').textContent = t.nom;
+  el.querySelector('.meta').textContent = [t.zone, t.duree+' min'].filter(Boolean).join(' · ');
+  if(t.qui) el.querySelector('.pers').textContent = t.qui;
+  el.onclick = () => cocher(t, dateStr, el);
+  return el;
+}
+
+async function cocher(t, dateStr, el){
+  const on = !el.classList.contains('ok');
+  el.classList.toggle('ok', on);
+  const qui = t.qui || S.moi || '';
+  if(on) S.data.journal.push({id:t.id, date:dateStr, qui, retard:0});
+  else S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
+  localStorage.setItem('cache', JSON.stringify(S.data));
+  if(S.vue==='jour') majCompteur();
+  try{ await api({action:'toggle', id:t.id, date:dateStr, qui}); bandeau(null); }
+  catch(e){ bandeau('Non enregistré — vérifiez la connexion'); }
+}
+
+function majCompteur(){
+  const d = ymd(new Date());
+  const l = pourLeJour(d), reste = l.filter(t=>!t.faite);
+  const min = reste.reduce((s,t)=>s+(Number(t.duree)||0),0);
+  const dd = new Date();
+  enTete(JOURS_L[dd.getDay()] + ' ' + dd.getDate() + ' ' + MOIS_L[dd.getMonth()],
+    reste.length ? min + ' min' : 'Terminé',
+    reste.length ? reste.length + ' tâches restantes' : l.length + ' tâches faites');
+}
+
+function vJour(v){
+  const d = ymd(new Date());
+  majCompteur();
+  const l = pourLeJour(d);
+  v.innerHTML = '';
+  if(!l.length){ v.innerHTML = '<p class="vide">Rien de prévu aujourd\'hui.</p>'; return; }
+  const tard = l.filter(t=>t.retard>0), reste = l.filter(t=>t.retard===0);
+  if(tard.length){ v.appendChild(titre('En retard')); tard.forEach(t=>v.appendChild(ligne(t,d))); }
+  if(reste.length){ v.appendChild(titre(tard.length ? 'Aujourd\'hui' : '')); reste.forEach(t=>v.appendChild(ligne(t,d))); }
+}
+
+function titre(txt){
+  const e = document.createElement('div');
+  e.className = 'groupe'; e.textContent = txt;
+  return e;
+}
+
+function vSemaine(v){
+  const base = new Date();
+  const lundi = plus(base, -((base.getDay()+6)%7));
+  let total = 0;
+  v.innerHTML = '<div class="semaine"></div>';
+  const w = v.firstChild;
+  for(let i=0;i<7;i++){
+    const d = plus(lundi,i), ds = ymd(d), l = pourLeJour(ds);
+    total += l.filter(t=>!t.faite).reduce((s,t)=>s+(Number(t.duree)||0),0);
+    const h = document.createElement('div');
+    h.className = 'jt';
+    h.innerHTML = JOURS_L[d.getDay()] + ' ' + d.getDate() + ' <span>' + (l.length ? l.length + ' tâches' : 'rien') + '</span>';
+    w.appendChild(h);
+    l.forEach(t => w.appendChild(ligne(t, ds)));
+  }
+  enTete('semaine du ' + lundi.getDate() + ' ' + MOIS_L[lundi.getMonth()], total + ' min', 'restantes sur la semaine');
+}
+
+function vMois(v){
+  const a = S.ancre, an = a.getFullYear(), mo = a.getMonth();
+  const premier = new Date(an, mo, 1);
+  const debut = plus(premier, -((premier.getDay()+6)%7));
+  const today = ymd(new Date());
+  let html = '<div class="cal">' + ['lun','mar','mer','jeu','ven','sam','dim'].map(j=>'<div class="dow">'+j+'</div>').join('');
+  for(let i=0;i<42;i++){
+    const d = plus(debut,i), ds = ymd(d), hors = d.getMonth() !== mo;
+    const n = hors ? 0 : pourLeJour(ds).length;
+    const pts = '<div class="pts">' + Array.from({length:Math.min(n,4)}, ()=>'<span class="pt"></span>').join('') + '</div>';
+    html += '<div class="cell' + (hors?' hors':'') + (ds===today?' today':'') + '">' + d.getDate() + (n?pts:'') + '</div>';
+  }
+  html += '</div><div style="padding:0 20px"><button class="btn sec" id="prev">Mois précédent</button>' +
+    '<button class="btn sec" id="next">Mois suivant</button></div>' +
+    '<p class="aide" style="padding:0 20px">Les tâches à intervalle sont projetées à titre indicatif : leur vraie date dépend du moment où vous les cochez.</p>';
+  v.innerHTML = html;
+  v.querySelector('#prev').onclick = () => { S.ancre = new Date(an, mo-1, 1); rendre(); };
+  v.querySelector('#next').onclick = () => { S.ancre = new Date(an, mo+1, 1); rendre(); };
+  enTete(MOIS_L[mo] + ' ' + an, MOIS_L[mo], '');
+}
+
+/* -------------------------------------------------------- réglages */
+
+function vReglages(v){
+  enTete('', 'Réglages', '');
+  const c = (S.data && S.data.config) || {};
+  const gens = (c.personnes || 'Antho,Alexandra').split(',').map(s=>s.trim());
+  v.innerHTML = `
+  <div class="bloc">
+    <h2>Serveur</h2>
+    <p class="aide">L'adresse en /exec donnée par Apps Script au déploiement.</p>
+    <div class="champ"><input type="text" class="large" id="api" placeholder="https://script.google.com/…/exec"></div>
+    <button class="btn" id="saveApi">Enregistrer et charger</button>
+  </div>
+  <div class="bloc">
+    <h2>Je suis</h2>
+    <p class="aide">Utilisé pour créditer les tâches libres que vous cochez.</p>
+    <div class="champ"><select id="moi">${gens.map(g=>`<option${g===S.moi?' selected':''}>${g}</option>`).join('')}</select></div>
+  </div>
+  <div class="bloc">
+    <h2>Envois automatiques</h2>
+    ${sw('mail_quotidien','Mail quotidien',c)}
+    ${sw('mail_hebdo','Récap hebdomadaire',c)}
+    ${sw('mail_mensuel','Récap mensuel',c)}
+    ${sw('vacances','Mode vacances',c)}
+    <p class="aide">Le mode vacances suspend tous les envois sans rien effacer.</p>
+  </div>
+  <div class="bloc">
+    <h2>Nouvelle tâche</h2>
+    <div class="champ"><input type="text" class="large" id="n_nom" placeholder="Nom de la tâche"></div>
+    <div class="champ"><input type="text" id="n_zone" placeholder="Zone"><input type="number" id="n_duree" placeholder="min" style="max-width:30%"></div>
+    <div class="champ"><span>Pour</span><select id="n_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}</select></div>
+    <div class="champ"><span>Revient</span><select id="n_mode">
+      <option value="jours">certains jours</option>
+      <option value="mois">un jour du mois</option>
+      <option value="intervalle">tous les N jours</option></select></div>
+    <div class="champ"><input type="text" class="large" id="n_regle" placeholder="lun,jeu"></div>
+    <p class="aide" id="n_aide">Codes acceptés : lun, mar, mer, jeu, ven, sam, dim.</p>
+    <div class="err" id="n_err"></div>
+    <button class="btn" id="ajouter">Ajouter la tâche</button>
+  </div>`;
+
+  const api_ = v.querySelector('#api'); api_.value = S.api;
+  v.querySelector('#saveApi').onclick = () => {
+    S.api = api_.value.trim(); localStorage.setItem('api', S.api); charger();
+  };
+  v.querySelector('#moi').onchange = e => { S.moi = e.target.value; localStorage.setItem('moi', S.moi); };
+  v.querySelectorAll('.sw').forEach(el => el.onclick = async () => {
+    const on = !el.classList.contains('on');
+    el.classList.toggle('on', on);
+    try{ await api({action:'setConfig', cle:el.dataset.k, valeur:on?'oui':'non'});
+      if(S.data) S.data.config[el.dataset.k] = on?'oui':'non';
+    }catch(e){ bandeau('Réglage non enregistré'); }
+  });
+
+  const mode = v.querySelector('#n_mode'), regle = v.querySelector('#n_regle'), aide = v.querySelector('#n_aide');
+  mode.onchange = () => {
+    const m = mode.value;
+    regle.placeholder = m==='jours' ? 'lun,jeu' : m==='mois' ? '1' : '14';
+    aide.textContent = m==='jours' ? 'Codes acceptés : lun, mar, mer, jeu, ven, sam, dim.'
+      : m==='mois' ? 'Le jour du mois, entre 1 et 31.'
+      : 'Le nombre de jours entre deux fois.';
+    regle.value = '';
+  };
+
+  v.querySelector('#ajouter').onclick = async () => {
+    const err = v.querySelector('#n_err');
+    const nom = v.querySelector('#n_nom').value.trim();
+    const r = regle.value.trim();
+    if(!nom){ err.textContent = 'Donnez un nom à la tâche.'; return; }
+    if(!r){ err.textContent = 'Renseignez la récurrence.'; return; }
+    if(mode.value==='jours' && !r.split(',').every(x=>JOURS.includes(x.trim()))){
+      err.textContent = 'Jours invalides. Exemple : lun,jeu'; return; }
+    if(mode.value!=='jours' && !/^\d+$/.test(r)){ err.textContent = 'Attendu : un nombre.'; return; }
+    err.textContent = '';
+    const t = { id:'t'+Date.now(), nom, zone:v.querySelector('#n_zone').value.trim(),
+      qui:v.querySelector('#n_qui').value, duree:+v.querySelector('#n_duree').value||0,
+      mode:mode.value, regle:r, actif:true };
+    try{ await api({action:'saveTache', tache:JSON.stringify(t)}); await charger(); S.vue='jour'; rendre(); }
+    catch(e){ err.textContent = 'Enregistrement impossible : ' + e.message; }
+  };
+  ['n_nom','n_zone','n_regle'].forEach(id =>
+    v.querySelector('#'+id).oninput = () => v.querySelector('#n_err').textContent = '');
+}
+
+function sw(cle, label, c){
+  const on = String(c[cle]||'').toLowerCase()==='oui';
+  return `<div class="champ"><span>${label}</span><span class="sw${on?' on':''}" data-k="${cle}"><i></i></span></div>`;
+}
+
+document.querySelectorAll('nav button').forEach(b =>
+  b.onclick = () => { S.vue = b.dataset.v; S.ancre = new Date(); rendre(); });
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+S.api ? charger() : (S.vue='reglages', rendre());
+</script>
+</body>
+</html>
