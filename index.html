@@ -215,6 +215,14 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 @keyframes toast{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 #toast button{background:none;border:0;color:var(--page);font-weight:700;font-size:13.5px;
   flex:none;text-decoration:underline;text-underline-offset:3px}
+#sheet{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end}
+.sheet-bg{position:absolute;inset:0;background:rgba(0,0,0,.35)}
+.sheet-panel{position:relative;width:100%;max-width:480px;margin:0 auto;background:var(--card);
+  border-radius:20px 20px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+  box-shadow:0 -12px 44px -14px rgba(0,0,0,.35);animation:sheet .22s cubic-bezier(.4,0,.2,1)}
+@keyframes sheet{from{transform:translateY(100%)}to{transform:none}}
+.sheet-panel h3{font-size:16px;font-weight:700;margin:0 0 3px}
+.sheet-panel .btn{margin-top:10px}
 .err{color:var(--err);font-size:13px;padding:4px 0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -224,6 +232,7 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 <div id="bandeau" class="bandeau" hidden></div>
 <div id="maj" class="bandeau" hidden style="cursor:pointer"></div>
 <div id="toast" hidden></div>
+<div id="sheet" hidden><div class="sheet-bg"></div><div class="sheet-panel"></div></div>
 <header>
   <div class="tete-h">
     <div class="jour" id="dateLabel"></div>
@@ -320,7 +329,11 @@ async function charger(){
   }
   statut();
   rendre();
+  if(S.data && !S.moi && personnes().length) demanderQui();
 }
+
+let _installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); _installEvt = e; });
 
 /* ------------------------------------------- file d'attente hors-ligne */
 
@@ -393,6 +406,62 @@ function toast(msg, action){
   }
   el.hidden = false;
   _toastT = setTimeout(() => { el.hidden = true; }, 4500);
+}
+
+function sheet(html, actions){
+  const s = document.getElementById('sheet');
+  const p = s.querySelector('.sheet-panel');
+  p.innerHTML = html;
+  Object.entries(actions || {}).forEach(([k, fn]) => {
+    const b = p.querySelector('[data-a="' + k + '"]');
+    if(b) b.onclick = fn;
+  });
+  s.querySelector('.sheet-bg').onclick = fermerSheet;
+  s.hidden = false;
+}
+function fermerSheet(){ document.getElementById('sheet').hidden = true; }
+
+function snoozer(id){
+  const lire = () => JSON.parse(localStorage.getItem('snooze') || '{}');
+  const s = lire(); s[id] = ymd(plus(new Date(), 1));
+  localStorage.setItem('snooze', JSON.stringify(s));
+  rendre();
+  toast('Masquée jusqu\'à demain', { label:'Annuler', fn:() => {
+    const s2 = lire(); delete s2[id]; localStorage.setItem('snooze', JSON.stringify(s2)); rendre();
+  }});
+}
+
+function detailTache(t, dateStr){
+  const last = derniereFois(t.id);
+  let hist = 'Jamais faite.';
+  if(last){
+    const dernier = [...(S.data.journal||[])].filter(x => x.id === t.id)
+      .sort((a,b) => String(b.date).localeCompare(String(a.date)))[0];
+    const j = Math.round((parseYmd(ymd(new Date())) - parseYmd(last)) / 86400000);
+    hist = 'Dernière fois : ' + (j <= 0 ? 'aujourd\'hui' : j === 1 ? 'hier' : 'il y a ' + j + ' j') +
+      (dernier && dernier.qui ? ' · ' + dernier.qui : '');
+  }
+  const auj = dateStr === ymd(new Date());
+  const meta = [recurrenceLisible(t), t.zone, t.duree ? t.duree + ' min' : ''].filter(Boolean).join(' · ');
+  sheet(
+    '<h3>' + esc(t.nom) + '</h3><p class="aide">' + esc(meta) + '</p>' +
+    '<p class="aide">' + esc(hist) + '</p>' +
+    '<button class="btn sec" data-a="edit">Modifier la tâche</button>' +
+    (auj && !faite(t.id, dateStr) ? '<button class="btn sec" data-a="snz">Pas aujourd\'hui</button>' : ''),
+    {
+      edit: () => { fermerSheet(); S.tacheEdit = {...t}; S.vue = 'taches'; rendre(); },
+      snz: () => { fermerSheet(); snoozer(t.id); }
+    }
+  );
+}
+
+function demanderQui(){
+  const gens = personnes();
+  sheet('<h3>Qui es-tu ?</h3><p class="aide">Pour créditer les tâches libres que tu coches. Modifiable dans Réglages.</p>' +
+    gens.map((g,i) => '<button class="btn sec" data-a="q' + i + '">' + esc(g) + '</button>').join(''),
+    Object.fromEntries(gens.map((g,i) => ['q' + i, () => {
+      S.moi = g; localStorage.setItem('moi', g); majConf(); fermerSheet(); rendre();
+    }])));
 }
 
 /* ---------------------------------------------- moteur de récurrence */
@@ -561,7 +630,20 @@ function ligne(t, dateStr){
     p.textContent = t.qui;
     p.style.color = couleurPersonne(t.qui);
   }
-  el.onclick = () => cocher(t, dateStr, el);
+  let pressT, longPress = false;
+  const stop = () => clearTimeout(pressT);
+  el.addEventListener('pointerdown', () => {
+    longPress = false;
+    pressT = setTimeout(() => {
+      longPress = true;
+      if(navigator.vibrate) navigator.vibrate(18);
+      detailTache(t, dateStr);
+    }, 450);
+  });
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointermove', stop);
+  el.addEventListener('pointercancel', stop);
+  el.onclick = () => { if(longPress){ longPress = false; return; } cocher(t, dateStr, el); };
   return el;
 }
 
@@ -881,6 +963,11 @@ function vReglages(v){
     <div class="champ"><input type="text" class="large" id="api" placeholder="https://script.google.com/…/exec"></div>
     <button class="btn" id="saveApi">Enregistrer et charger</button>
   </div>
+  ${(_installEvt && !matchMedia('(display-mode: standalone)').matches) ? `<div class="bloc">
+    <h2>Installer</h2>
+    <p class="aide">Ajoute Ménage à l'écran d'accueil pour l'ouvrir comme une appli.</p>
+    <button class="btn" id="install" style="margin:0">Installer l'app</button>
+  </div>` : ''}
   <div class="bloc">
     <h2>Je suis</h2>
     <p class="aide">Utilisé pour créditer les tâches libres que vous cochez.</p>
@@ -888,7 +975,7 @@ function vReglages(v){
   </div>
   <div class="bloc">
     <h2>Thème</h2>
-    <p class="aide">Propre à cet appareil. Les 3 premiers suivent le mode clair/sombre du téléphone.</p>
+    <p class="aide">Propre à cet appareil. Tous sauf « Nuit » suivent le mode clair/sombre du téléphone.</p>
     <div class="themes">
       ${THEMES.map(([id,nom]) => `<button class="theme-chip${S.theme===id?' on':''}" data-t="${id}">
         <span class="theme-apercu" data-t="${id}"></span>${nom}</button>`).join('')}
@@ -921,6 +1008,13 @@ function vReglages(v){
   const api_ = v.querySelector('#api'); api_.value = S.api;
   v.querySelector('#saveApi').onclick = () => {
     S.api = api_.value.trim(); localStorage.setItem('api', S.api); majConf(); charger();
+  };
+  const ib = v.querySelector('#install');
+  if(ib) ib.onclick = async () => {
+    _installEvt.prompt();
+    await _installEvt.userChoice;
+    _installEvt = null;
+    vReglages(v);
   };
   v.querySelector('#moi').onchange = e => {
     S.moi = e.target.value; localStorage.setItem('moi', S.moi); majConf();
