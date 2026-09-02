@@ -58,6 +58,18 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('mailMensuel').timeBased().onMonthDay(1).atHour(h).create();
 }
 
+/**
+ * À lancer UNE FOIS après avoir collé une nouvelle version de Code.gs.
+ * Idempotent : sans danger si relancé. Ne recrée jamais la base (contrairement à setup()).
+ */
+function migrer() {
+  var ss = ss_();
+  // la colonne "regle" doit rester du texte, sinon Sheets convertit "2026-09-15" en date
+  ss.getSheetByName('Taches').getRange('G:G').setNumberFormat('@');
+  installerDeclencheurs();
+  Logger.log('Migration OK');
+}
+
 /* ------------------------------------------------------------- accès Sheet */
 
 function ss_() {
@@ -125,11 +137,17 @@ function paquet_() {
     return { id: r.id, date: r.date instanceof Date ? ymd_(r.date) : String(r.date), qui: r.qui, retard: Number(r.retard) || 0 };
   });
   return {
-    taches: lire_('Taches').filter(function (t) { return t.actif !== false && t.actif !== 'non'; }),
+    taches: lire_('Taches'),
     journal: journal,
     config: config(),
     aujourdhui: ymd_(new Date())
   };
+}
+
+function estActif_(t) {
+  if (t.actif === false) return false;
+  var s = String(t.actif).toLowerCase();
+  return s !== 'false' && s !== 'faux' && s !== 'non';
 }
 
 function toggle_(p) {
@@ -149,8 +167,9 @@ function toggle_(p) {
 
 function saveTache_(t) {
   var sh = ss_().getSheetByName('Taches');
+  sh.getRange('G:G').setNumberFormat('@'); // "regle" en texte : garde "2026-09-15" tel quel
   var v = sh.getDataRange().getValues();
-  var ligne = [t.id, t.nom, t.zone, t.qui, Number(t.duree) || 0, t.mode, t.regle, t.actif !== false];
+  var ligne = [t.id, t.nom, t.zone, t.qui, Number(t.duree) || 0, t.mode, String(t.regle), t.actif !== false];
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][0]) === String(t.id)) {
       sh.getRange(i + 1, 1, 1, 8).setValues([ligne]);
@@ -208,10 +227,17 @@ function estDue_(t, dateStr, journal) {
     var ecoule = Math.round((d - parseYmd_(last)) / 86400000);
     return ecoule >= n;
   }
+  if (t.mode === 'date') {
+    return dateStr === String(t.regle);
+  }
   return false;
 }
 
 function retardJours_(t, dateStr, journal) {
+  if (t.mode === 'date') {
+    if (derniereFois_(journal, t.id)) return 0;
+    return Math.max(0, Math.round((parseYmd_(dateStr) - parseYmd_(String(t.regle))) / 86400000));
+  }
   if (t.mode !== 'intervalle') return 0;
   var n = parseInt(t.regle, 10) || 1;
   var last = derniereFois_(journal, t.id);
@@ -226,14 +252,23 @@ function faite_(journal, id, dateStr) {
 
 function tachesDuJour_(dateStr) {
   var p = paquet_();
-  return p.taches.filter(function (t) { return estDue_(t, dateStr, p.journal); })
-    .map(function (t) {
-      return {
-        nom: t.nom, zone: t.zone, qui: t.qui, duree: Number(t.duree) || 0,
-        retard: retardJours_(t, dateStr, p.journal),
-        faite: faite_(p.journal, t.id, dateStr)
-      };
+  var actives = p.taches.filter(estActif_);
+  var due = actives.filter(function (t) { return estDue_(t, dateStr, p.journal); });
+  if (dateStr === ymd_(new Date())) {
+    actives.forEach(function (t) {
+      if (t.mode === 'date' && String(t.regle) < dateStr &&
+          !derniereFois_(p.journal, t.id) && due.indexOf(t) < 0) {
+        due.push(t);
+      }
     });
+  }
+  return due.map(function (t) {
+    return {
+      nom: t.nom, zone: t.zone, qui: t.qui, duree: Number(t.duree) || 0,
+      retard: retardJours_(t, dateStr, p.journal),
+      faite: faite_(p.journal, t.id, dateStr)
+    };
+  });
 }
 
 /* ------------------------------------------------------------------ mails */
@@ -273,6 +308,7 @@ function mailMensuel() { if (actif_('mail_mensuel') && !enVacances_()) recap_(30
 
 function recap_(jours, titre) {
   var p = paquet_();
+  var taches = p.taches.filter(estActif_);
   var fin = new Date(), debut = new Date();
   debut.setDate(fin.getDate() - jours);
   var faits = p.journal.filter(function (r) {
@@ -291,10 +327,14 @@ function recap_(jours, titre) {
   });
 
   var attendu = 0;
-  p.taches.forEach(function (t) {
+  taches.forEach(function (t) {
     if (t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours / 7);
     else if (t.mode === 'mois') attendu += jours / 30;
-    else attendu += jours / (parseInt(t.regle, 10) || 1);
+    else if (t.mode === 'intervalle') attendu += jours / (parseInt(t.regle, 10) || 1);
+    else if (t.mode === 'date') {
+      var jd = parseYmd_(String(t.regle));
+      if (jd >= debut && jd <= fin) attendu += 1;
+    }
   });
   attendu = Math.max(1, Math.round(attendu));
 
@@ -311,7 +351,7 @@ function recap_(jours, titre) {
   html += '</ul><h3 style="font-weight:500">Jamais faites sur la période</h3><ul>';
   var vues = {};
   faits.forEach(function (r) { vues[r.id] = 1; });
-  var oubliees = p.taches.filter(function (t) { return !vues[t.id]; });
+  var oubliees = taches.filter(function (t) { return !vues[t.id]; });
   html += oubliees.length
     ? oubliees.map(function (t) { return '<li>' + t.nom + '</li>'; }).join('')
     : '<li style="color:#6b7573">Aucune, tout est passé au moins une fois</li>';

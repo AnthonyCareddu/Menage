@@ -76,9 +76,10 @@ nav button.on{color:var(--accent);font-weight:600}
 .bloc{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   padding:16px 20px;margin-top:18px}
 .champ{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0}
-.champ input[type=text],.champ input[type=number],.champ select{
+.champ input[type=text],.champ input[type=number],.champ input[type=date],.champ select{
   border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--page);max-width:56%}
-.champ input[type=text].large{max-width:100%;width:100%}
+.champ input.large{max-width:100%;width:100%}
+.row.off{opacity:.55}
 h2{font-size:15px;font-weight:600;margin:0 0 6px}
 .aide{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
 .btn{border:1px solid var(--accent);background:var(--accent);color:#fff;
@@ -122,7 +123,8 @@ const S = {
   moi: localStorage.getItem('moi') || '',
   data: JSON.parse(localStorage.getItem('cache') || 'null'),
   vue: 'jour',
-  ancre: new Date()
+  ancre: new Date(),
+  tacheEdit: null
 };
 
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -177,10 +179,16 @@ function estDue(t, dateStr){
     if(!last) return true;
     return Math.round((d - parseYmd(last)) / 86400000) >= n;
   }
+  if(t.mode === 'date')
+    return dateStr === String(t.regle);
   return false;
 }
 
 function retard(t, dateStr){
+  if(t.mode === 'date'){
+    if(derniereFois(t.id)) return 0;
+    return Math.max(0, Math.round((parseYmd(dateStr) - parseYmd(String(t.regle)))/86400000));
+  }
   if(t.mode !== 'intervalle') return 0;
   const n = parseInt(t.regle,10) || 1;
   const last = derniereFois(t.id);
@@ -190,10 +198,32 @@ function retard(t, dateStr){
 
 const faite = (id, dateStr) => (S.data.journal||[]).some(r => r.id===id && r.date===dateStr);
 
+function estActif(t){
+  if(t.actif === false) return false;
+  const s = String(t.actif).toLowerCase();
+  return s !== 'false' && s !== 'faux' && s !== 'non';
+}
+
+function recurrenceLisible(t){
+  if(t.mode === 'jours') return String(t.regle);
+  if(t.mode === 'mois') return 'le ' + t.regle + ' du mois';
+  if(t.mode === 'intervalle') return 'tous les ' + t.regle + ' j';
+  if(t.mode === 'date') return 'le ' + t.regle;
+  return '';
+}
+
+function personnes(){
+  const c = (S.data && S.data.config) || {};
+  return (c.personnes || 'Antho,Alexandra').split(',').map(s=>s.trim()).filter(Boolean);
+}
+
 function pourLeJour(dateStr){
   if(!S.data) return [];
+  const auj = dateStr === ymd(new Date());
   return S.data.taches
-    .filter(t => estDue(t, dateStr))
+    .filter(estActif)
+    .filter(t => estDue(t, dateStr) ||
+      (auj && t.mode === 'date' && String(t.regle) < dateStr && !derniereFois(t.id)))
     .map(t => ({...t, retard: retard(t,dateStr), faite: faite(t.id,dateStr)}))
     .sort((a,b) => (b.retard-a.retard) || (a.faite-b.faite) || a.nom.localeCompare(b.nom));
 }
@@ -202,10 +232,11 @@ function pourLeJour(dateStr){
 
 function rendre(){
   const v = document.getElementById('vue');
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v===S.vue));
+  const navActif = S.vue === 'taches' ? 'reglages' : S.vue;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v===navActif));
   if(!S.data && S.vue !== 'reglages'){ enTete('','Configuration requise'); v.innerHTML =
     '<p class="vide">Renseignez l\'adresse du serveur dans Réglages pour démarrer.</p>'; return; }
-  ({jour:vJour, semaine:vSemaine, mois:vMois, reglages:vReglages})[S.vue](v);
+  ({jour:vJour, semaine:vSemaine, mois:vMois, reglages:vReglages, taches:vTaches})[S.vue](v);
 }
 
 function enTete(label, gros, sub){
@@ -318,7 +349,7 @@ function vMois(v){
 function vReglages(v){
   enTete('', 'Réglages', '');
   const c = (S.data && S.data.config) || {};
-  const gens = (c.personnes || 'Antho,Alexandra').split(',').map(s=>s.trim());
+  const gens = personnes();
   v.innerHTML = `
   <div class="bloc">
     <h2>Serveur</h2>
@@ -332,26 +363,17 @@ function vReglages(v){
     <div class="champ"><select id="moi">${gens.map(g=>`<option${g===S.moi?' selected':''}>${g}</option>`).join('')}</select></div>
   </div>
   <div class="bloc">
+    <h2>Tâches</h2>
+    <p class="aide">Ajouter, modifier, désactiver ou supprimer une tâche.</p>
+    <button class="btn sec" id="gererTaches">Gérer les tâches →</button>
+  </div>
+  <div class="bloc">
     <h2>Envois automatiques</h2>
     ${sw('mail_quotidien','Mail quotidien',c)}
     ${sw('mail_hebdo','Récap hebdomadaire',c)}
     ${sw('mail_mensuel','Récap mensuel',c)}
     ${sw('vacances','Mode vacances',c)}
     <p class="aide">Le mode vacances suspend tous les envois sans rien effacer.</p>
-  </div>
-  <div class="bloc">
-    <h2>Nouvelle tâche</h2>
-    <div class="champ"><input type="text" class="large" id="n_nom" placeholder="Nom de la tâche"></div>
-    <div class="champ"><input type="text" id="n_zone" placeholder="Zone"><input type="number" id="n_duree" placeholder="min" style="max-width:30%"></div>
-    <div class="champ"><span>Pour</span><select id="n_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}</select></div>
-    <div class="champ"><span>Revient</span><select id="n_mode">
-      <option value="jours">certains jours</option>
-      <option value="mois">un jour du mois</option>
-      <option value="intervalle">tous les N jours</option></select></div>
-    <div class="champ"><input type="text" class="large" id="n_regle" placeholder="lun,jeu"></div>
-    <p class="aide" id="n_aide">Codes acceptés : lun, mar, mer, jeu, ven, sam, dim.</p>
-    <div class="err" id="n_err"></div>
-    <button class="btn" id="ajouter">Ajouter la tâche</button>
   </div>`;
 
   const api_ = v.querySelector('#api'); api_.value = S.api;
@@ -359,6 +381,7 @@ function vReglages(v){
     S.api = api_.value.trim(); localStorage.setItem('api', S.api); charger();
   };
   v.querySelector('#moi').onchange = e => { S.moi = e.target.value; localStorage.setItem('moi', S.moi); };
+  v.querySelector('#gererTaches').onclick = () => { S.tacheEdit = null; S.vue = 'taches'; rendre(); };
   v.querySelectorAll('.sw').forEach(el => el.onclick = async () => {
     const on = !el.classList.contains('on');
     el.classList.toggle('on', on);
@@ -366,35 +389,121 @@ function vReglages(v){
       if(S.data) S.data.config[el.dataset.k] = on?'oui':'non';
     }catch(e){ bandeau('Réglage non enregistré'); }
   });
+}
 
-  const mode = v.querySelector('#n_mode'), regle = v.querySelector('#n_regle'), aide = v.querySelector('#n_aide');
-  mode.onchange = () => {
+/* ---------------------------------------------------------- tâches */
+
+function vTaches(v){
+  if(S.tacheEdit){ editeurTache(v); return; }
+  const ts = [...S.data.taches].sort((a,b) =>
+    (estActif(b)-estActif(a)) || String(a.nom).localeCompare(String(b.nom)));
+  enTete('', 'Tâches', ts.filter(estActif).length + ' actives');
+  v.innerHTML = '<div style="padding:14px 20px 4px"><button class="btn" id="nouvelle">+ Nouvelle tâche</button></div>';
+  if(!ts.length) v.insertAdjacentHTML('beforeend', '<p class="vide">Aucune tâche pour l\'instant.</p>');
+  ts.forEach(t => {
+    const el = document.createElement('div');
+    el.className = 'row' + (estActif(t) ? '' : ' off');
+    el.innerHTML = '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
+      (t.qui ? '<span class="pers"></span>' : '') +
+      (estActif(t) ? '' : '<span class="tag">off</span>');
+    el.querySelector('.nom').textContent = t.nom;
+    el.querySelector('.meta').textContent =
+      [t.zone, (t.duree ? t.duree+' min' : ''), recurrenceLisible(t)].filter(Boolean).join(' · ');
+    if(t.qui) el.querySelector('.pers').textContent = t.qui;
+    el.onclick = () => { S.tacheEdit = {...t}; rendre(); };
+    v.appendChild(el);
+  });
+  const retour = document.createElement('button');
+  retour.className = 'btn sec';
+  retour.textContent = '‹ Retour aux réglages';
+  retour.style.cssText = 'width:calc(100% - 40px);margin:18px 20px';
+  retour.onclick = () => { S.vue = 'reglages'; rendre(); };
+  v.appendChild(retour);
+  v.querySelector('#nouvelle').onclick = () => {
+    S.tacheEdit = { id:'t'+Date.now(), nom:'', zone:'', qui:'', duree:0,
+      mode:'jours', regle:'', actif:true, _nouveau:true };
+    rendre();
+  };
+}
+
+function editeurTache(v){
+  const t = S.tacheEdit, gens = personnes();
+  enTete('', t._nouveau ? 'Nouvelle tâche' : 'Modifier', '');
+  v.innerHTML = `
+  <div class="bloc">
+    <div class="champ"><input type="text" class="large" id="e_nom" placeholder="Nom de la tâche"></div>
+    <div class="champ"><input type="text" id="e_zone" placeholder="Zone"><input type="number" id="e_duree" placeholder="min" style="max-width:30%"></div>
+    <div class="champ"><span>Pour</span><select id="e_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}</select></div>
+    <div class="champ"><span>Revient</span><select id="e_mode">
+      <option value="jours">certains jours</option>
+      <option value="mois">un jour du mois</option>
+      <option value="intervalle">tous les N jours</option>
+      <option value="date">une seule fois</option></select></div>
+    <div class="champ"><input type="text" class="large" id="e_regle"></div>
+    <p class="aide" id="e_aide"></p>
+    <div class="champ"><span>Active</span><span class="sw" id="e_actif"><i></i></span></div>
+    <div class="err" id="e_err"></div>
+    <button class="btn" id="e_save">Enregistrer</button>
+    ${t._nouveau ? '' : '<button class="btn sec" id="e_del">Supprimer la tâche</button>'}
+    <button class="btn sec" id="e_annul">Annuler</button>
+  </div>`;
+
+  const $ = id => v.querySelector('#'+id);
+  $('e_nom').value = t.nom || '';
+  $('e_zone').value = t.zone || '';
+  $('e_duree').value = t.duree || '';
+  $('e_qui').value = t.qui || '';
+  const mode = $('e_mode'); mode.value = t.mode || 'jours';
+  const regle = $('e_regle'), aide = $('e_aide'), actif = $('e_actif');
+  actif.classList.toggle('on', estActif(t));
+  actif.onclick = () => actif.classList.toggle('on');
+
+  const majAide = garder => {
     const m = mode.value;
-    regle.placeholder = m==='jours' ? 'lun,jeu' : m==='mois' ? '1' : '14';
-    aide.textContent = m==='jours' ? 'Codes acceptés : lun, mar, mer, jeu, ven, sam, dim.'
-      : m==='mois' ? 'Le jour du mois, entre 1 et 31.'
-      : 'Le nombre de jours entre deux fois.';
-    regle.value = '';
+    if(m === 'date'){
+      regle.type = 'date';
+      aide.textContent = 'Le jour où la tâche doit être faite une fois.';
+    } else {
+      regle.type = 'text';
+      regle.placeholder = m==='jours' ? 'lun,jeu' : m==='mois' ? '1' : '14';
+      aide.textContent = m==='jours' ? 'Codes : lun, mar, mer, jeu, ven, sam, dim.'
+        : m==='mois' ? 'Le jour du mois, entre 1 et 31.' : 'Nombre de jours entre deux fois.';
+    }
+    if(!garder) regle.value = '';
+  };
+  regle.value = t.regle || '';
+  majAide(true);
+  mode.onchange = () => majAide(false);
+
+  $('e_annul').onclick = () => { S.tacheEdit = null; rendre(); };
+
+  if(!t._nouveau) $('e_del').onclick = async () => {
+    if(!confirm('Supprimer « ' + t.nom + ' » ? Les tâches déjà cochées restent dans l\'historique.')) return;
+    try{ await api({action:'deleteTache', id:t.id}); await charger(); S.tacheEdit = null; rendre(); }
+    catch(e){ $('e_err').textContent = 'Suppression impossible : ' + e.message; }
   };
 
-  v.querySelector('#ajouter').onclick = async () => {
-    const err = v.querySelector('#n_err');
-    const nom = v.querySelector('#n_nom').value.trim();
+  $('e_save').onclick = async () => {
+    const err = $('e_err');
+    const nom = $('e_nom').value.trim();
+    const m = mode.value;
     const r = regle.value.trim();
     if(!nom){ err.textContent = 'Donnez un nom à la tâche.'; return; }
     if(!r){ err.textContent = 'Renseignez la récurrence.'; return; }
-    if(mode.value==='jours' && !r.split(',').every(x=>JOURS.includes(x.trim()))){
+    if(m==='jours' && !r.split(',').every(x=>JOURS.includes(x.trim()))){
       err.textContent = 'Jours invalides. Exemple : lun,jeu'; return; }
-    if(mode.value!=='jours' && !/^\d+$/.test(r)){ err.textContent = 'Attendu : un nombre.'; return; }
+    if((m==='mois' || m==='intervalle') && !/^\d+$/.test(r)){
+      err.textContent = 'Attendu : un nombre.'; return; }
+    if(m==='mois' && (+r < 1 || +r > 31)){ err.textContent = 'Jour du mois entre 1 et 31.'; return; }
+    if(m==='date' && !/^\d{4}-\d{2}-\d{2}$/.test(r)){ err.textContent = 'Choisissez une date.'; return; }
     err.textContent = '';
-    const t = { id:'t'+Date.now(), nom, zone:v.querySelector('#n_zone').value.trim(),
-      qui:v.querySelector('#n_qui').value, duree:+v.querySelector('#n_duree').value||0,
-      mode:mode.value, regle:r, actif:true };
-    try{ await api({action:'saveTache', tache:JSON.stringify(t)}); await charger(); S.vue='jour'; rendre(); }
+    const nt = { id:t.id, nom, zone:$('e_zone').value.trim(), qui:$('e_qui').value,
+      duree:+$('e_duree').value || 0, mode:m, regle:r, actif:actif.classList.contains('on') };
+    try{ await api({action:'saveTache', tache:JSON.stringify(nt)}); await charger(); S.tacheEdit = null; rendre(); }
     catch(e){ err.textContent = 'Enregistrement impossible : ' + e.message; }
   };
-  ['n_nom','n_zone','n_regle'].forEach(id =>
-    v.querySelector('#'+id).oninput = () => v.querySelector('#n_err').textContent = '');
+
+  ['e_nom','e_zone','e_regle'].forEach(id => $(id).oninput = () => $('e_err').textContent = '');
 }
 
 function sw(cle, label, c){
