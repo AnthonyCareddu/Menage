@@ -1,14 +1,18 @@
-const CACHE = 'menage-v1';
+const CACHE = 'menage-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)));
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
     .then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n))))
     .then(() => self.clients.claim()));
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', e => {

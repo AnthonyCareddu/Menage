@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ménage</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2f6b4f">
+<meta name="theme-color" content="#eef1ef" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#12161a" media="(prefers-color-scheme:dark)">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +15,14 @@
 :root{
   --page:#eef1ef; --card:#fff; --ink:#14181b; --muted:#6b7573;
   --line:#dde2df; --accent:#2f6b4f; --late:#b8730f; --late-bg:#f8efdf;
+  --pers-bg:#e7ece9; --hors:#b3bbb6; --err:#a3352d;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --page:#12161a; --card:#1b2126; --ink:#e7ece9; --muted:#8a938f;
+    --line:#2b333a; --accent:#5aa980; --late:#d98a2b; --late-bg:#33291a;
+    --pers-bg:#243029; --hors:#4b555c; --err:#e0776e;
+  }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--page);color:var(--ink);
@@ -42,7 +51,7 @@ main{padding:0 0 92px}
 .row.ok .nom{text-decoration:line-through;color:var(--muted)}
 .meta{display:block;font-size:12.5px;color:var(--muted)}
 .tag{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:var(--late-bg);color:var(--late)}
-.pers{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:#e7ece9;color:var(--accent)}
+.pers{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:var(--pers-bg);color:var(--accent)}
 
 .vide{padding:48px 20px;text-align:center;color:var(--muted)}
 
@@ -54,7 +63,7 @@ main{padding:0 0 92px}
 .cal .dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0}
 .cell{aspect-ratio:1;background:var(--card);border-radius:8px;display:flex;
   flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px}
-.cell.hors{background:transparent;color:#b3bbb6}
+.cell.hors{background:transparent;color:var(--hors)}
 .cell.today{outline:1.5px solid var(--accent)}
 .pt{width:5px;height:5px;border-radius:50%;background:var(--accent)}
 .pts{display:flex;gap:2px;height:5px}
@@ -81,13 +90,14 @@ h2{font-size:15px;font-weight:600;margin:0 0 6px}
   background:#fff;transition:transform .18s}
 .sw.on i{transform:translateX(18px)}
 .bandeau{background:var(--late-bg);color:var(--late);font-size:13px;padding:9px 20px;text-align:center}
-.err{color:#a3352d;font-size:13px;padding:6px 0}
+.err{color:var(--err);font-size:13px;padding:6px 0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 
 <div id="bandeau" class="bandeau" hidden></div>
+<div id="maj" class="bandeau" hidden style="cursor:pointer"></div>
 <header>
   <div class="jour" id="dateLabel"></div>
   <div class="compte"><span class="gros" id="gros">—</span><span class="gros-sub" id="grosSub"></span></div>
@@ -213,7 +223,12 @@ function ligne(t, dateStr){
     (t.retard>0 ? '<span class="tag">+'+t.retard+' j</span>' : '') +
     (t.qui ? '<span class="pers"></span>' : '');
   el.querySelector('.nom').textContent = t.nom;
-  el.querySelector('.meta').textContent = [t.zone, t.duree+' min'].filter(Boolean).join(' · ');
+  const bouts = [t.zone, t.duree+' min'];
+  if(t.mode === 'intervalle'){
+    const last = derniereFois(t.id);
+    if(last) bouts.push('il y a ' + Math.round((parseYmd(dateStr) - parseYmd(last))/86400000) + ' j');
+  }
+  el.querySelector('.meta').textContent = bouts.filter(Boolean).join(' · ');
   if(t.qui) el.querySelector('.pers').textContent = t.qui;
   el.onclick = () => cocher(t, dateStr, el);
   return el;
@@ -222,6 +237,7 @@ function ligne(t, dateStr){
 async function cocher(t, dateStr, el){
   const on = !el.classList.contains('ok');
   el.classList.toggle('ok', on);
+  if(on && navigator.vibrate) navigator.vibrate(15);
   const qui = t.qui || S.moi || '';
   if(on) S.data.journal.push({id:t.id, date:dateStr, qui, retard:0});
   else S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
@@ -389,7 +405,28 @@ function sw(cle, label, c){
 document.querySelectorAll('nav button').forEach(b =>
   b.onclick = () => { S.vue = b.dataset.v; S.ancre = new Date(); rendre(); });
 
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      const nv = reg.installing;
+      if(!nv) return;
+      nv.addEventListener('statechange', () => {
+        if(nv.state === 'installed' && navigator.serviceWorker.controller){
+          const m = document.getElementById('maj');
+          m.hidden = false;
+          m.textContent = 'Nouvelle version — appuyer pour recharger';
+          m.onclick = () => reg.waiting && reg.waiting.postMessage({type:'SKIP_WAITING'});
+        }
+      });
+    });
+  });
+  let recharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if(recharge) return;
+    recharge = true;
+    location.reload();
+  });
+}
 S.api ? charger() : (S.vue='reglages', rendre());
 </script>
 </body>
