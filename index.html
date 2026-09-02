@@ -145,9 +145,11 @@ async function api(params){
   if(!S.api) throw new Error('Adresse du serveur non renseignée');
   const u = new URL(S.api);
   Object.entries(params).forEach(([k,v]) => u.searchParams.set(k,v));
-  const r = await fetch(u.toString());
+  let r;
+  try{ r = await fetch(u.toString()); }
+  catch(e){ const err = new Error('réseau indisponible'); err.reseau = true; throw err; }
   const j = await r.json();
-  if(!j.ok) throw new Error(j.erreur);
+  if(!j.ok) throw new Error(j.erreur || 'erreur serveur');
   return j.data;
 }
 
@@ -155,12 +157,63 @@ async function charger(){
   try{
     S.data = await api({action:'data'});
     localStorage.setItem('cache', JSON.stringify(S.data));
-    bandeau(null);
+    S.horsLigne = false;
+    viderFile();
   }catch(e){
-    bandeau(S.data ? 'Hors ligne — données du dernier chargement' : 'Impossible de joindre le serveur');
+    S.horsLigne = true;
   }
+  statut();
   rendre();
 }
+
+/* ------------------------------------------- file d'attente hors-ligne */
+
+S.queue = JSON.parse(localStorage.getItem('queue') || '[]');
+S.horsLigne = false;
+
+function sauverFile(){ localStorage.setItem('queue', JSON.stringify(S.queue)); }
+
+async function envoyer(params){
+  try{
+    await api(params);
+    S.horsLigne = false;
+    await viderFile();
+    return true;
+  }catch(e){
+    if(e.reseau){
+      S.queue.push({ params, ts: Date.now() });
+      sauverFile();
+      statut();
+    }else{
+      bandeau('Refusé par le serveur : ' + e.message);
+    }
+    return false;
+  }
+}
+
+async function viderFile(){
+  while(S.queue.length){
+    try{
+      await api(S.queue[0].params);
+    }catch(e){
+      if(e.reseau){ statut(); return; }
+      S.queue.shift(); sauverFile();   // erreur serveur : on abandonne l'item pour ne pas bloquer
+      continue;
+    }
+    S.queue.shift(); sauverFile();
+  }
+  statut();
+}
+
+function statut(){
+  const n = S.queue.length;
+  if(n) bandeau(n + (n > 1 ? ' modifs' : ' modif') + ' en attente — synchro au retour du réseau');
+  else if(S.horsLigne) bandeau(S.data ? 'Hors ligne — dernières données connues' : 'Impossible de joindre le serveur');
+  else bandeau(null);
+}
+
+addEventListener('online', viderFile);
+addEventListener('visibilitychange', () => { if(!document.hidden) viderFile(); });
 
 function bandeau(msg){
   const b = document.getElementById('bandeau');
@@ -284,8 +337,7 @@ async function cocher(t, dateStr, el){
   else S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
   localStorage.setItem('cache', JSON.stringify(S.data));
   if(S.vue==='jour') majCompteur();
-  try{ await api({action:'toggle', id:t.id, date:dateStr, qui}); bandeau(null); }
-  catch(e){ bandeau('Non enregistré — vérifiez la connexion'); }
+  envoyer({action:'toggle', id:t.id, date:dateStr, qui});
 }
 
 function majCompteur(){
@@ -487,12 +539,12 @@ function vReglages(v){
   };
   v.querySelector('#moi').onchange = e => { S.moi = e.target.value; localStorage.setItem('moi', S.moi); };
   v.querySelector('#gererTaches').onclick = () => { S.tacheEdit = null; S.vue = 'taches'; rendre(); };
-  v.querySelectorAll('.sw').forEach(el => el.onclick = async () => {
+  v.querySelectorAll('.sw').forEach(el => el.onclick = () => {
     const on = !el.classList.contains('on');
     el.classList.toggle('on', on);
-    try{ await api({action:'setConfig', cle:el.dataset.k, valeur:on?'oui':'non'});
-      if(S.data) S.data.config[el.dataset.k] = on?'oui':'non';
-    }catch(e){ bandeau('Réglage non enregistré'); }
+    if(S.data) S.data.config[el.dataset.k] = on ? 'oui' : 'non';
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    envoyer({action:'setConfig', cle:el.dataset.k, valeur:on?'oui':'non'});
   });
 }
 
@@ -584,8 +636,10 @@ function editeurTache(v){
 
   if(!t._nouveau) $('e_del').onclick = async () => {
     if(!confirm('Supprimer « ' + t.nom + ' » ? Les tâches déjà cochées restent dans l\'historique.')) return;
-    try{ await api({action:'deleteTache', id:t.id}); await charger(); S.tacheEdit = null; rendre(); }
-    catch(e){ $('e_err').textContent = 'Suppression impossible : ' + e.message; }
+    S.data.taches = S.data.taches.filter(x => String(x.id) !== String(t.id));
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    S.tacheEdit = null; rendre();
+    if(await envoyer({action:'deleteTache', id:t.id})) charger();
   };
 
   $('e_save').onclick = async () => {
@@ -604,8 +658,11 @@ function editeurTache(v){
     err.textContent = '';
     const nt = { id:t.id, nom, zone:$('e_zone').value.trim(), qui:$('e_qui').value,
       duree:+$('e_duree').value || 0, mode:m, regle:r, actif:actif.classList.contains('on') };
-    try{ await api({action:'saveTache', tache:JSON.stringify(nt)}); await charger(); S.tacheEdit = null; rendre(); }
-    catch(e){ err.textContent = 'Enregistrement impossible : ' + e.message; }
+    const i = S.data.taches.findIndex(x => String(x.id) === String(nt.id));
+    if(i >= 0) S.data.taches[i] = nt; else S.data.taches.push(nt);
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    S.tacheEdit = null; rendre();
+    if(await envoyer({action:'saveTache', tache:JSON.stringify(nt)})) charger();
   };
 
   ['e_nom','e_zone','e_regle'].forEach(id => $(id).oninput = () => $('e_err').textContent = '');
