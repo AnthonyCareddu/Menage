@@ -81,6 +81,8 @@ function migrer() {
   vapidKeys_();
   installerDeclencheurs();
   Logger.log('Migration OK — clé VAPID publique : ' + vapidKeys_().pub);
+  Logger.log('Fuseau du script : ' + Session.getScriptTimeZone() +
+    ' (à régler sur Europe/Paris dans Projet > Paramètres si les rappels arrivent à la mauvaise heure)');
 }
 
 /* ------------------------------------------------------------- accès Sheet */

@@ -109,7 +109,8 @@ main{padding:0 16px 112px}
   padding:22px 6px 9px;text-transform:uppercase}
 .liste{background:var(--card);border-radius:var(--r);box-shadow:var(--ombre);overflow:hidden}
 .liste + .liste{margin-top:14px}
-.row{display:flex;align-items:center;gap:14px;padding:15px 16px;cursor:pointer;transition:background .15s}
+.row{display:flex;align-items:center;gap:14px;padding:15px 16px;cursor:pointer;transition:background .15s;
+  -webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
 .row + .row{border-top:1px solid var(--line)}
 .row:active{background:var(--accent-bg)}
 .box{flex:none;width:26px;height:26px;border-radius:50%;border:1.6px solid var(--line);
@@ -323,6 +324,7 @@ async function charger(){
     S.data = await api({action:'data'});
     localStorage.setItem('cache', JSON.stringify(S.data));
     S.horsLigne = false;
+    _serieCache = null;
     viderFile();
   }catch(e){
     S.horsLigne = true;
@@ -630,19 +632,22 @@ function ligne(t, dateStr){
     p.textContent = t.qui;
     p.style.color = couleurPersonne(t.qui);
   }
-  let pressT, longPress = false;
+  let pressT, longPress = false, x0 = 0, y0 = 0;
   const stop = () => clearTimeout(pressT);
-  el.addEventListener('pointerdown', () => {
-    longPress = false;
+  el.addEventListener('pointerdown', e => {
+    longPress = false; x0 = e.clientX; y0 = e.clientY;
     pressT = setTimeout(() => {
       longPress = true;
       if(navigator.vibrate) navigator.vibrate(18);
       detailTache(t, dateStr);
     }, 450);
   });
+  el.addEventListener('pointermove', e => {
+    if(Math.abs(e.clientX - x0) > 8 || Math.abs(e.clientY - y0) > 8) stop();
+  });
   el.addEventListener('pointerup', stop);
-  el.addEventListener('pointermove', stop);
   el.addEventListener('pointercancel', stop);
+  el.addEventListener('contextmenu', e => e.preventDefault());
   el.onclick = () => { if(longPress){ longPress = false; return; } cocher(t, dateStr, el); };
   return el;
 }
@@ -658,6 +663,7 @@ function cocher(t, dateStr, el){
   const on = !el.classList.contains('ok');
   el.classList.toggle('ok', on);
   if(on && navigator.vibrate) navigator.vibrate(15);
+  _serieCache = null;
   const qui = t.qui || S.moi || '';
   if(on){
     S.data.journal.push({id:t.id, date:dateStr, qui, retard:0});
@@ -673,6 +679,7 @@ function cocher(t, dateStr, el){
 function decocher(t, dateStr){
   S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
   localStorage.setItem('cache', JSON.stringify(S.data));
+  _serieCache = null;
   envoyer({action:'toggle', id:t.id, date:dateStr, qui: t.qui || S.moi || ''});
   rendre();
 }
@@ -701,7 +708,9 @@ function quiEnRetard(){
 }
 
 /* jours consécutifs (avec tâches datées) où tout a été fait */
+let _serieCache = null;
 function serie(){
+  if(_serieCache !== null) return _serieCache;
   if(!S.data) return 0;
   let n = 0, d = new Date();
   if(bilanDuJour().reste.length) d = plus(d, -1);
@@ -1238,12 +1247,20 @@ function editeurTache(v){
 
   $('e_annul').onclick = () => { S.tacheEdit = null; rendre(); };
 
-  if(!t._nouveau) $('e_del').onclick = async () => {
-    if(!confirm('Supprimer « ' + t.nom + ' » ? Les tâches déjà cochées restent dans l\'historique.')) return;
-    S.data.taches = S.data.taches.filter(x => String(x.id) !== String(t.id));
-    localStorage.setItem('cache', JSON.stringify(S.data));
-    S.tacheEdit = null; rendre();
-    if(await envoyer({action:'deleteTache', id:t.id})) charger();
+  if(!t._nouveau) $('e_del').onclick = () => {
+    sheet(
+      '<h3>Supprimer « ' + esc(t.nom) + ' » ?</h3>' +
+      '<p class="aide">Les tâches déjà cochées restent dans l\'historique.</p>' +
+      '<button class="btn danger" data-a="ok">Supprimer</button>' +
+      '<button class="btn sec" data-a="non">Annuler</button>',
+      { non: fermerSheet, ok: async () => {
+        fermerSheet();
+        S.data.taches = S.data.taches.filter(x => String(x.id) !== String(t.id));
+        localStorage.setItem('cache', JSON.stringify(S.data));
+        S.tacheEdit = null; rendre();
+        if(await envoyer({action:'deleteTache', id:t.id})) charger();
+      }}
+    );
   };
 
   $('e_save').onclick = async () => {
