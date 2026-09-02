@@ -68,10 +68,17 @@ main{padding:0 0 92px}
 .pt{width:5px;height:5px;border-radius:50%;background:var(--accent)}
 .pts{display:flex;gap:2px;height:5px}
 
-nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);
+nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);
   background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav button{border:0;background:none;padding:11px 0 13px;font-size:12px;color:var(--muted)}
+nav button{border:0;background:none;padding:11px 0 13px;font-size:11px;color:var(--muted)}
 nav button.on{color:var(--accent);font-weight:600}
+
+.pilule{border:1px solid var(--line);background:none;color:var(--muted);
+  border-radius:14px;padding:5px 12px;font-size:13px}
+.pilule.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.barre{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:4px 0 14px;background:var(--line)}
+.barre span{display:block}
+.puce{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
 
 .bloc{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
   padding:16px 20px;margin-top:18px}
@@ -110,6 +117,7 @@ h2{font-size:15px;font-weight:600;margin:0 0 6px}
   <button data-v="jour" class="on">Aujourd'hui</button>
   <button data-v="semaine">Semaine</button>
   <button data-v="mois">Mois</button>
+  <button data-v="bilan">Bilan</button>
   <button data-v="reglages">Réglages</button>
 </nav>
 
@@ -124,12 +132,14 @@ const S = {
   data: JSON.parse(localStorage.getItem('cache') || 'null'),
   vue: 'jour',
   ancre: new Date(),
-  tacheEdit: null
+  tacheEdit: null,
+  bilanPeriode: 7
 };
 
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 const parseYmd = s => { const p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); };
 const plus = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 async function api(params){
   if(!S.api) throw new Error('Adresse du serveur non renseignée');
@@ -236,7 +246,7 @@ function rendre(){
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v===navActif));
   if(!S.data && S.vue !== 'reglages'){ enTete('','Configuration requise'); v.innerHTML =
     '<p class="vide">Renseignez l\'adresse du serveur dans Réglages pour démarrer.</p>'; return; }
-  ({jour:vJour, semaine:vSemaine, mois:vMois, reglages:vReglages, taches:vTaches})[S.vue](v);
+  ({jour:vJour, semaine:vSemaine, mois:vMois, bilan:vBilan, reglages:vReglages, taches:vTaches})[S.vue](v);
 }
 
 function enTete(label, gros, sub){
@@ -342,6 +352,101 @@ function vMois(v){
   v.querySelector('#prev').onclick = () => { S.ancre = new Date(an, mo-1, 1); rendre(); };
   v.querySelector('#next').onclick = () => { S.ancre = new Date(an, mo+1, 1); rendre(); };
   enTete(MOIS_L[mo] + ' ' + an, MOIS_L[mo], '');
+}
+
+/* ---------------------------------------------------------- bilan */
+
+function statsPeriode(jours){
+  const fin = new Date(); fin.setHours(23,59,59,999);
+  const debut = plus(new Date(), -(jours-1)); debut.setHours(0,0,0,0);
+  const actives = S.data.taches.filter(estActif);
+  const dureeParId = {};
+  S.data.taches.forEach(t => dureeParId[t.id] = Number(t.duree) || 0);
+
+  const faits = (S.data.journal||[]).filter(r => {
+    const d = parseYmd(r.date);
+    return d >= debut && d <= fin;
+  });
+
+  const parPersonne = {};
+  let aLheure = 0;
+  faits.forEach(r => {
+    const q = r.qui || 'non attribué';
+    parPersonne[q] = parPersonne[q] || {n:0, min:0};
+    parPersonne[q].n++;
+    parPersonne[q].min += dureeParId[r.id] || 0;
+    if((Number(r.retard)||0) <= 0) aLheure++;
+  });
+
+  let attendu = 0;
+  actives.forEach(t => {
+    if(t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours/7);
+    else if(t.mode === 'mois') attendu += jours/30;
+    else if(t.mode === 'intervalle') attendu += jours / (parseInt(t.regle,10) || 1);
+    else if(t.mode === 'date'){
+      const jd = parseYmd(String(t.regle));
+      if(jd >= debut && jd <= fin) attendu += 1;
+    }
+  });
+  attendu = Math.max(1, Math.round(attendu));
+
+  const vues = {};
+  faits.forEach(r => vues[r.id] = 1);
+  return {
+    faits, parPersonne, attendu,
+    oubliees: actives.filter(t => !vues[t.id]),
+    ponctualite: faits.length ? Math.round(aLheure/faits.length*100) : 0,
+    accomplissement: Math.min(100, Math.round(faits.length/attendu*100))
+  };
+}
+
+function vBilan(v){
+  const jours = S.bilanPeriode;
+  const st = statsPeriode(jours);
+  enTete('', 'Bilan', jours + ' derniers jours');
+
+  personnes().forEach(g => { if(!st.parPersonne[g]) st.parPersonne[g] = {n:0, min:0}; });
+  const noms = Object.keys(st.parPersonne)
+    .sort((a,b) => st.parPersonne[b].min - st.parPersonne[a].min || st.parPersonne[b].n - st.parPersonne[a].n);
+  const COUL = ['var(--accent)', '#7b9cc4', '#c48a6a', '#9a7bc4'];
+  const totalMin = noms.reduce((s,q) => s + st.parPersonne[q].min, 0);
+  const totalN = noms.reduce((s,q) => s + st.parPersonne[q].n, 0);
+  const base = totalMin > 0 ? 'min' : 'n';
+  const total = base === 'min' ? totalMin : totalN;
+
+  const segments = total
+    ? noms.map((q,i) => `<span style="width:${st.parPersonne[q][base]/total*100}%;background:${COUL[i%4]}"></span>`).join('')
+    : '';
+
+  v.innerHTML = `
+  <div class="bloc">
+    <div class="champ" style="justify-content:flex-start;gap:8px;padding:0 0 4px">
+      <button class="pilule${jours===7?' on':''}" data-j="7">7 jours</button>
+      <button class="pilule${jours===30?' on':''}" data-j="30">30 jours</button>
+    </div>
+    <h2>Répartition</h2>
+    <p class="aide">Part de chacun${base==='min'?', en temps passé':', en nombre de tâches'}.</p>
+    <div class="barre">${segments}</div>
+    ${noms.map((q,i) => `<div class="champ" style="padding:6px 0">
+      <span><span class="puce" style="background:${COUL[i%4]}"></span>${esc(q)}</span>
+      <span class="aide" style="margin:0">${st.parPersonne[q].n} tâches · ${st.parPersonne[q].min} min${total?' · '+Math.round(st.parPersonne[q][base]/total*100)+'%':''}</span>
+    </div>`).join('')}
+    ${totalN ? '' : '<p class="aide">Rien de coché sur la période.</p>'}
+  </div>
+  <div class="bloc">
+    <h2>Sur la période</h2>
+    <div class="champ" style="padding:6px 0"><span>Tâches faites</span><span>${st.faits.length} <span class="aide" style="margin:0">/ ~${st.attendu} prévues</span></span></div>
+    <div class="champ" style="padding:6px 0"><span>Accomplissement</span><span>${st.accomplissement} %</span></div>
+    <div class="champ" style="padding:6px 0"><span>Dans les temps</span><span>${st.ponctualite} %</span></div>
+  </div>
+  <div class="bloc">
+    <h2>Jamais faites sur la période</h2>
+    ${st.oubliees.length
+      ? st.oubliees.map(t => `<div class="champ" style="padding:6px 0"><span>${esc(t.nom)}</span><span class="aide" style="margin:0">${esc(recurrenceLisible(t))}</span></div>`).join('')
+      : '<p class="aide">Rien — tout est passé au moins une fois.</p>'}
+  </div>`;
+
+  v.querySelectorAll('.pilule').forEach(b => b.onclick = () => { S.bilanPeriode = +b.dataset.j; rendre(); });
 }
 
 /* -------------------------------------------------------- réglages */
