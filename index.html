@@ -5,101 +5,141 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ménage</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#eef1ef" media="(prefers-color-scheme:light)">
-<meta name="theme-color" content="#12161a" media="(prefers-color-scheme:dark)">
+<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme:light)">
+<meta name="theme-color" content="#1a1613" media="(prefers-color-scheme:dark)">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --page:#eef1ef; --card:#fff; --ink:#14181b; --muted:#6b7573;
-  --line:#dde2df; --accent:#2f6b4f; --late:#b8730f; --late-bg:#f8efdf;
-  --pers-bg:#e7ece9; --hors:#b3bbb6; --err:#a3352d;
+  --page:#f4f1ea; --card:#fffdf7; --ink:#2a2723; --muted:#8b8177;
+  --line:#e8e2d6; --accent:#2d6a4f; --accent-bg:#dcebe2;
+  --late:#bd6b3c; --late-bg:#f6e7db;
+  --p1:#2d6a4f; --p2:#b5654d; --p3:#5b7aa8; --p4:#8a6bab;
+  --hors:#c9c1b3; --err:#b23b31;
+  --ombre:0 1px 2px rgba(42,39,35,.05), 0 14px 30px -16px rgba(42,39,35,.16);
+  --r:18px;
 }
 @media(prefers-color-scheme:dark){
   :root{
-    --page:#12161a; --card:#1b2126; --ink:#e7ece9; --muted:#8a938f;
-    --line:#2b333a; --accent:#5aa980; --late:#d98a2b; --late-bg:#33291a;
-    --pers-bg:#243029; --hors:#4b555c; --err:#e0776e;
+    --page:#1a1613; --card:#241f1b; --ink:#ece4d9; --muted:#9c9184;
+    --line:#362f28; --accent:#63b088; --accent-bg:#25342d;
+    --late:#d98a5a; --late-bg:#38291d;
+    --p1:#63b088; --p2:#d98a5a; --p3:#8aa8d4; --p4:#b199d6;
+    --hors:#4c453c; --err:#e0776e;
+    --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--page);color:var(--ink);
-  font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:16px;line-height:1.5}
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
+#bandeau,#maj,header,main{max-width:480px;margin-inline:auto}
 
-header{padding:22px 20px 14px;background:var(--page);position:sticky;top:0;z-index:5}
-.jour{font-size:13px;color:var(--muted)}
-.compte{display:flex;align-items:baseline;gap:8px;margin-top:2px}
-.gros{font-size:38px;font-weight:600;letter-spacing:-.02em;line-height:1}
+header{padding:calc(12px + env(safe-area-inset-top)) 20px 16px;background:var(--page);
+  position:sticky;top:0;z-index:5}
+.tete-h{display:flex;align-items:center;justify-content:space-between;min-height:32px}
+.jour{font-size:13px;color:var(--muted);letter-spacing:.01em}
+.ico-btn{width:40px;height:40px;margin:-8px -9px -8px 0;border:0;background:none;color:var(--muted);
+  display:flex;align-items:center;justify-content:center;border-radius:11px}
+.ico-btn:active{background:var(--accent-bg);color:var(--accent)}
+.ico-btn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.compte{display:flex;align-items:baseline;gap:9px;margin-top:7px}
+.gros{font-size:39px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .gros-sub{font-size:14px;color:var(--muted)}
+.prog{height:6px;border-radius:3px;background:var(--line);margin-top:15px;overflow:hidden}
+.prog span{display:block;height:100%;background:var(--accent);border-radius:3px;
+  transition:width .5s cubic-bezier(.4,0,.2,1)}
 
-main{padding:0 0 92px}
-.groupe{font-size:12px;color:var(--muted);padding:16px 20px 6px}
-.row{display:flex;align-items:center;gap:14px;padding:14px 20px;
-  background:var(--card);border-top:1px solid var(--line);cursor:pointer}
-.row:last-child{border-bottom:1px solid var(--line)}
-.box{flex:none;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);
-  display:flex;align-items:center;justify-content:center;transition:background .18s,border-color .18s}
-.box svg{width:14px;height:14px;stroke:#fff;stroke-width:2.6;fill:none;
-  stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .18s}
-.row.ok .box{background:var(--accent);border-color:var(--accent)}
+main{padding:0 16px 112px}
+.groupe{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.05em;
+  padding:22px 6px 9px;text-transform:uppercase}
+.liste{background:var(--card);border-radius:var(--r);box-shadow:var(--ombre);overflow:hidden}
+.liste + .liste{margin-top:14px}
+.row{display:flex;align-items:center;gap:14px;padding:15px 16px;cursor:pointer;transition:background .15s}
+.row + .row{border-top:1px solid var(--line)}
+.row:active{background:var(--accent-bg)}
+.box{flex:none;width:26px;height:26px;border-radius:50%;border:1.6px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  transition:background .2s,border-color .2s,transform .2s}
+.box svg{width:14px;height:14px;stroke:#fff;stroke-width:2.8;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .2s}
+.row.ok .box{background:var(--accent);border-color:var(--accent);transform:scale(1.08)}
 .row.ok .box svg{opacity:1}
 .txt{flex:1;min-width:0}
-.nom{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.row.ok .nom{text-decoration:line-through;color:var(--muted)}
-.meta{display:block;font-size:12.5px;color:var(--muted)}
-.tag{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:var(--late-bg);color:var(--late)}
-.pers{flex:none;font-size:11.5px;padding:3px 8px;border-radius:11px;background:var(--pers-bg);color:var(--accent)}
+.nom{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.row.ok .nom{text-decoration:line-through;color:var(--muted);font-weight:400}
+.meta{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
+.tag,.pers{flex:none;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:11px;white-space:nowrap}
+.tag{background:var(--late-bg);color:var(--late)}
+.pers{background:color-mix(in srgb,currentColor 15%,transparent)}
 
-.vide{padding:48px 20px;text-align:center;color:var(--muted)}
+.vide{padding:54px 24px;text-align:center;color:var(--muted)}
+.vide svg{width:38px;height:38px;stroke:var(--hors);fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 14px}
 
-.semaine{padding:8px 0}
-.jt{font-size:13px;font-weight:600;padding:18px 20px 2px}
+.seg{display:flex;gap:4px;background:var(--card);border-radius:13px;padding:4px;
+  box-shadow:var(--ombre);margin:16px 0 2px}
+.seg button{flex:1;border:0;background:none;color:var(--muted);padding:9px;border-radius:9px;
+  font-size:13.5px;font-weight:600;transition:background .15s,color .15s}
+.seg button.on{background:var(--accent-bg);color:var(--accent)}
+.jt{font-size:13px;font-weight:700;padding:20px 6px 8px}
 .jt span{font-weight:400;color:var(--muted)}
 
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:12px 14px}
-.cal .dow{font-size:11px;color:var(--muted);text-align:center;padding:4px 0}
-.cell{aspect-ratio:1;background:var(--card);border-radius:8px;display:flex;
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;background:var(--card);
+  border-radius:var(--r);box-shadow:var(--ombre);padding:14px 12px;margin-top:16px}
+.cal .dow{font-size:11px;color:var(--muted);text-align:center;padding:2px 0 6px;font-weight:600}
+.cell{aspect-ratio:1;background:var(--page);border-radius:10px;display:flex;
   flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px}
 .cell.hors{background:transparent;color:var(--hors)}
-.cell.today{outline:1.5px solid var(--accent)}
+.cell.today{background:var(--accent-bg);color:var(--accent);font-weight:700}
 .pt{width:5px;height:5px;border-radius:50%;background:var(--accent)}
 .pts{display:flex;gap:2px;height:5px}
 
-nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);
-  background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav button{border:0;background:none;padding:11px 0 13px;font-size:11px;color:var(--muted)}
-nav button.on{color:var(--accent);font-weight:600}
-
 .pilule{border:1px solid var(--line);background:none;color:var(--muted);
-  border-radius:14px;padding:5px 12px;font-size:13px}
-.pilule.on{border-color:var(--accent);color:var(--accent);font-weight:600}
-.barre{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:4px 0 14px;background:var(--line)}
+  border-radius:14px;padding:6px 14px;font-size:13px;font-weight:600}
+.pilule.on{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.barre{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:6px 0 16px;background:var(--line)}
 .barre span{display:block}
-.puce{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.puce{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:middle}
 
-.bloc{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);
-  padding:16px 20px;margin-top:18px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+  display:grid;grid-template-columns:repeat(3,1fr);background:var(--card);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav button{border:0;background:none;padding:9px 0 9px;color:var(--muted);
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600}
+nav button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--accent)}
+
+.bloc{background:var(--card);border-radius:var(--r);box-shadow:var(--ombre);padding:18px;margin-top:16px}
+.bloc:first-child{margin-top:18px}
 .champ{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0}
 .champ input[type=text],.champ input[type=number],.champ input[type=date],.champ select{
-  border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--page);max-width:56%}
+  border:1px solid var(--line);border-radius:10px;padding:8px 11px;background:var(--page);max-width:56%}
 .champ input.large{max-width:100%;width:100%}
-.row.off{opacity:.55}
-h2{font-size:15px;font-weight:600;margin:0 0 6px}
-.aide{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
-.btn{border:1px solid var(--accent);background:var(--accent);color:#fff;
-  border-radius:9px;padding:10px 16px;width:100%;margin-top:12px}
+.row.off{opacity:.5}
+h2{font-size:14px;font-weight:700;margin:0 0 4px}
+.aide{font-size:12.5px;color:var(--muted);margin:2px 0 12px;line-height:1.45}
+.btn{border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;
+  border-radius:12px;padding:12px 16px;width:100%;margin-top:12px;transition:transform .1s}
+.btn:active{transform:scale(.985)}
 .btn.sec{background:none;color:var(--accent)}
-.sw{position:relative;width:42px;height:24px;border-radius:12px;background:var(--line);flex:none}
+.btn.danger{background:none;border-color:color-mix(in srgb,var(--err) 45%,transparent);color:var(--err)}
+.sw{position:relative;width:44px;height:26px;border-radius:13px;background:var(--line);
+  flex:none;transition:background .2s}
 .sw.on{background:var(--accent)}
-.sw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
-  background:#fff;transition:transform .18s}
+.sw i{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:#fff;transition:transform .2s}
 .sw.on i{transform:translateX(18px)}
-.bandeau{background:var(--late-bg);color:var(--late);font-size:13px;padding:9px 20px;text-align:center}
-.err{color:var(--err);font-size:13px;padding:6px 0}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.bandeau{background:var(--late-bg);color:var(--late);font-size:13px;font-weight:500;
+  padding:10px 20px;text-align:center}
+#maj{background:var(--accent);color:#fff}
+.err{color:var(--err);font-size:13px;padding:4px 0}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -107,18 +147,29 @@ h2{font-size:15px;font-weight:600;margin:0 0 6px}
 <div id="bandeau" class="bandeau" hidden></div>
 <div id="maj" class="bandeau" hidden style="cursor:pointer"></div>
 <header>
-  <div class="jour" id="dateLabel"></div>
+  <div class="tete-h">
+    <div class="jour" id="dateLabel"></div>
+    <button class="ico-btn" id="actBtn" aria-label="Réglages"></button>
+  </div>
   <div class="compte"><span class="gros" id="gros">—</span><span class="gros-sub" id="grosSub"></span></div>
+  <div class="prog" id="prog" hidden><span></span></div>
 </header>
 
 <main id="vue"></main>
 
 <nav>
-  <button data-v="jour" class="on">Aujourd'hui</button>
-  <button data-v="semaine">Semaine</button>
-  <button data-v="mois">Mois</button>
-  <button data-v="bilan">Bilan</button>
-  <button data-v="reglages">Réglages</button>
+  <button data-v="jour">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"/></svg>
+    <span>Aujourd'hui</span>
+  </button>
+  <button data-v="planning">
+    <svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+    <span>Planning</span>
+  </button>
+  <button data-v="bilan">
+    <svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6.5 20v-6M12 20V8.5M17.5 20v-9"/></svg>
+    <span>Bilan</span>
+  </button>
 </nav>
 
 <script>
@@ -133,13 +184,21 @@ const S = {
   vue: 'jour',
   ancre: new Date(),
   tacheEdit: null,
-  bilanPeriode: 7
+  bilanPeriode: 7,
+  planningVue: 'semaine'
+};
+
+const ICO = {
+  sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.3"/><path d="M19.5 12a7.5 7.5 0 0 0-.15-1.5l2-1.55-2-3.46-2.36 1a7.5 7.5 0 0 0-2.6-1.5L14 1h-4l-.39 2.49a7.5 7.5 0 0 0-2.6 1.5l-2.36-1-2 3.46 2 1.55A7.5 7.5 0 0 0 4.5 12c0 .51.05 1.01.15 1.5l-2 1.55 2 3.46 2.36-1a7.5 7.5 0 0 0 2.6 1.5L10 23h4l.39-2.49a7.5 7.5 0 0 0 2.6-1.5l2.36 1 2-3.46-2-1.55c.1-.49.15-.99.15-1.5z"/></svg>',
+  retour: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'
 };
 
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 const parseYmd = s => { const p = String(s).split('-'); return new Date(+p[0], +p[1]-1, +p[2]); };
 const plus = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 async function api(params){
   if(!S.api) throw new Error('Adresse du serveur non renseignée');
@@ -280,6 +339,11 @@ function personnes(){
   return (c.personnes || 'Antho,Alexandra').split(',').map(s=>s.trim()).filter(Boolean);
 }
 
+function couleurPersonne(nom){
+  const i = personnes().indexOf(nom);
+  return 'var(--p' + (i >= 0 && i < 4 ? i + 1 : 1) + ')';
+}
+
 function pourLeJour(dateStr){
   if(!S.data) return [];
   const auj = dateStr === ymd(new Date());
@@ -293,19 +357,47 @@ function pourLeJour(dateStr){
 
 /* ------------------------------------------------------------- rendu */
 
+function aller(vue){ S.vue = vue; S.ancre = new Date(); S.tacheEdit = null; rendre(); }
+
 function rendre(){
   const v = document.getElementById('vue');
-  const navActif = S.vue === 'taches' ? 'reglages' : S.vue;
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v===navActif));
-  if(!S.data && S.vue !== 'reglages'){ enTete('','Configuration requise'); v.innerHTML =
-    '<p class="vide">Renseignez l\'adresse du serveur dans Réglages pour démarrer.</p>'; return; }
-  ({jour:vJour, semaine:vSemaine, mois:vMois, bilan:vBilan, reglages:vReglages, taches:vTaches})[S.vue](v);
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === S.vue));
+
+  const act = document.getElementById('actBtn');
+  if(S.vue === 'reglages'){
+    act.innerHTML = ICO.retour; act.onclick = () => aller('jour');
+  }else if(S.vue === 'taches'){
+    act.innerHTML = ICO.retour;
+    act.onclick = () => { if(S.tacheEdit){ S.tacheEdit = null; rendre(); } else aller('reglages'); };
+  }else{
+    act.innerHTML = ICO.gear; act.onclick = () => aller('reglages');
+  }
+
+  if(!matchMedia('(prefers-reduced-motion:reduce)').matches)
+    v.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}],
+      {duration:250, easing:'cubic-bezier(.4,0,.2,1)'});
+
+  if(!S.data && S.vue !== 'reglages'){
+    enTete('', 'Bienvenue', '');
+    v.innerHTML = '<div class="vide">' + ICO.sun +
+      '<div>Renseigne l\'adresse du serveur dans les réglages (roue crantée) pour démarrer.</div></div>';
+    return;
+  }
+  ({jour:vJour, planning:vPlanning, bilan:vBilan, reglages:vReglages, taches:vTaches})[S.vue](v);
 }
 
 function enTete(label, gros, sub){
   document.getElementById('dateLabel').textContent = label;
   document.getElementById('gros').textContent = gros;
   document.getElementById('grosSub').textContent = sub || '';
+  progres(0, 0);
+}
+
+function progres(fait, total){
+  const p = document.getElementById('prog');
+  if(!total){ p.hidden = true; return; }
+  p.hidden = false;
+  p.firstElementChild.style.width = Math.round(fait / total * 100) + '%';
 }
 
 function ligne(t, dateStr){
@@ -323,9 +415,20 @@ function ligne(t, dateStr){
     if(last) bouts.push('il y a ' + Math.round((parseYmd(dateStr) - parseYmd(last))/86400000) + ' j');
   }
   el.querySelector('.meta').textContent = bouts.filter(Boolean).join(' · ');
-  if(t.qui) el.querySelector('.pers').textContent = t.qui;
+  if(t.qui){
+    const p = el.querySelector('.pers');
+    p.textContent = t.qui;
+    p.style.color = couleurPersonne(t.qui);
+  }
   el.onclick = () => cocher(t, dateStr, el);
   return el;
+}
+
+function liste(taches, dateStr){
+  const box = document.createElement('div');
+  box.className = 'liste';
+  taches.forEach(t => box.appendChild(ligne(t, dateStr)));
+  return box;
 }
 
 async function cocher(t, dateStr, el){
@@ -340,25 +443,46 @@ async function cocher(t, dateStr, el){
   envoyer({action:'toggle', id:t.id, date:dateStr, qui});
 }
 
-function majCompteur(){
+function bilanDuJour(){
   const d = ymd(new Date());
-  const l = pourLeJour(d), reste = l.filter(t=>!t.faite);
-  const min = reste.reduce((s,t)=>s+(Number(t.duree)||0),0);
+  const l = pourLeJour(d);
+  const reste = l.filter(t => !t.faite);
+  const actifs = new Set(S.data.taches.filter(estActif).map(t => String(t.id)));
+  const faites = new Set((S.data.journal||[])
+    .filter(r => r.date === d && actifs.has(String(r.id))).map(r => String(r.id)));
+  reste.forEach(t => faites.delete(String(t.id)));
+  return { reste, nbFait: faites.size, total: reste.length + faites.size };
+}
+
+function majCompteur(){
+  const b = bilanDuJour();
+  const min = b.reste.reduce((s,t)=>s+(Number(t.duree)||0),0);
   const dd = new Date();
-  enTete(JOURS_L[dd.getDay()] + ' ' + dd.getDate() + ' ' + MOIS_L[dd.getMonth()],
-    reste.length ? min + ' min' : 'Terminé',
-    reste.length ? reste.length + ' tâches restantes' : l.length + ' tâches faites');
+  enTete(cap(JOURS_L[dd.getDay()]) + ' ' + dd.getDate() + ' ' + MOIS_L[dd.getMonth()],
+    b.reste.length ? min + ' min' : (b.total ? 'Terminé' : 'Rien à faire'),
+    b.reste.length ? b.reste.length + (b.reste.length>1?' tâches restantes':' tâche restante')
+      : (b.total ? b.nbFait + (b.nbFait>1?' tâches faites':' tâche faite') : ''));
+  if(b.total) progres(b.nbFait, b.total);
 }
 
 function vJour(v){
   const d = ymd(new Date());
   majCompteur();
+  const b = bilanDuJour();
   const l = pourLeJour(d);
   v.innerHTML = '';
-  if(!l.length){ v.innerHTML = '<p class="vide">Rien de prévu aujourd\'hui.</p>'; return; }
+  if(!l.length){
+    v.innerHTML = '<div class="vide">' + ICO.sun + '<div>' +
+      (b.nbFait ? 'Tout est fait pour aujourd\'hui.' : 'Journée tranquille — rien de prévu.') +
+      '</div></div>';
+    return;
+  }
   const tard = l.filter(t=>t.retard>0), reste = l.filter(t=>t.retard===0);
-  if(tard.length){ v.appendChild(titre('En retard')); tard.forEach(t=>v.appendChild(ligne(t,d))); }
-  if(reste.length){ v.appendChild(titre(tard.length ? 'Aujourd\'hui' : '')); reste.forEach(t=>v.appendChild(ligne(t,d))); }
+  if(tard.length){ v.appendChild(titre('En retard')); v.appendChild(liste(tard, d)); }
+  if(reste.length){
+    if(tard.length) v.appendChild(titre('Aujourd\'hui'));
+    v.appendChild(liste(reste, d));
+  }
 }
 
 function titre(txt){
@@ -367,22 +491,35 @@ function titre(txt){
   return e;
 }
 
+function vPlanning(v){
+  const sub = S.planningVue;
+  v.innerHTML =
+    '<div class="seg">' +
+      '<button data-s="semaine"' + (sub==='semaine'?' class="on"':'') + '>Semaine</button>' +
+      '<button data-s="mois"' + (sub==='mois'?' class="on"':'') + '>Mois</button>' +
+    '</div><div id="planContenu"></div>';
+  v.querySelectorAll('.seg button').forEach(b =>
+    b.onclick = () => { S.planningVue = b.dataset.s; rendre(); });
+  (sub === 'mois' ? vMois : vSemaine)(document.getElementById('planContenu'));
+}
+
 function vSemaine(v){
   const base = new Date();
   const lundi = plus(base, -((base.getDay()+6)%7));
   let total = 0;
-  v.innerHTML = '<div class="semaine"></div>';
-  const w = v.firstChild;
+  v.innerHTML = '';
   for(let i=0;i<7;i++){
     const d = plus(lundi,i), ds = ymd(d), l = pourLeJour(ds);
     total += l.filter(t=>!t.faite).reduce((s,t)=>s+(Number(t.duree)||0),0);
     const h = document.createElement('div');
     h.className = 'jt';
-    h.innerHTML = JOURS_L[d.getDay()] + ' ' + d.getDate() + ' <span>' + (l.length ? l.length + ' tâches' : 'rien') + '</span>';
-    w.appendChild(h);
-    l.forEach(t => w.appendChild(ligne(t, ds)));
+    h.innerHTML = esc(cap(JOURS_L[d.getDay()]) + ' ' + d.getDate()) +
+      ' <span>' + (l.length ? l.length + (l.length>1?' tâches':' tâche') : 'rien') + '</span>';
+    v.appendChild(h);
+    if(l.length) v.appendChild(liste(l, ds));
   }
-  enTete('semaine du ' + lundi.getDate() + ' ' + MOIS_L[lundi.getMonth()], total + ' min', 'restantes sur la semaine');
+  enTete('Semaine du ' + lundi.getDate() + ' ' + MOIS_L[lundi.getMonth()],
+    total + ' min', total ? 'restantes cette semaine' : 'tout est fait');
 }
 
 function vMois(v){
@@ -397,13 +534,14 @@ function vMois(v){
     const pts = '<div class="pts">' + Array.from({length:Math.min(n,4)}, ()=>'<span class="pt"></span>').join('') + '</div>';
     html += '<div class="cell' + (hors?' hors':'') + (ds===today?' today':'') + '">' + d.getDate() + (n?pts:'') + '</div>';
   }
-  html += '</div><div style="padding:0 20px"><button class="btn sec" id="prev">Mois précédent</button>' +
-    '<button class="btn sec" id="next">Mois suivant</button></div>' +
-    '<p class="aide" style="padding:0 20px">Les tâches à intervalle sont projetées à titre indicatif : leur vraie date dépend du moment où vous les cochez.</p>';
+  html += '</div><div style="display:flex;gap:10px;margin-top:14px">' +
+    '<button class="btn sec" id="prev" style="margin:0">‹ ' + cap(MOIS_L[(mo+11)%12]) + '</button>' +
+    '<button class="btn sec" id="next" style="margin:0">' + cap(MOIS_L[(mo+1)%12]) + ' ›</button></div>' +
+    '<p class="aide" style="margin-top:12px">Les tâches à intervalle sont projetées à titre indicatif : leur vraie date dépend du moment où elles sont cochées.</p>';
   v.innerHTML = html;
   v.querySelector('#prev').onclick = () => { S.ancre = new Date(an, mo-1, 1); rendre(); };
   v.querySelector('#next').onclick = () => { S.ancre = new Date(an, mo+1, 1); rendre(); };
-  enTete(MOIS_L[mo] + ' ' + an, MOIS_L[mo], '');
+  enTete('Planning', cap(MOIS_L[mo]) + ' ' + an, '');
 }
 
 /* ---------------------------------------------------------- bilan */
@@ -460,14 +598,14 @@ function vBilan(v){
   personnes().forEach(g => { if(!st.parPersonne[g]) st.parPersonne[g] = {n:0, min:0}; });
   const noms = Object.keys(st.parPersonne)
     .sort((a,b) => st.parPersonne[b].min - st.parPersonne[a].min || st.parPersonne[b].n - st.parPersonne[a].n);
-  const COUL = ['var(--accent)', '#7b9cc4', '#c48a6a', '#9a7bc4'];
+  const coul = q => q === 'non attribué' ? 'var(--muted)' : couleurPersonne(q);
   const totalMin = noms.reduce((s,q) => s + st.parPersonne[q].min, 0);
   const totalN = noms.reduce((s,q) => s + st.parPersonne[q].n, 0);
   const base = totalMin > 0 ? 'min' : 'n';
   const total = base === 'min' ? totalMin : totalN;
 
   const segments = total
-    ? noms.map((q,i) => `<span style="width:${st.parPersonne[q][base]/total*100}%;background:${COUL[i%4]}"></span>`).join('')
+    ? noms.map(q => `<span style="width:${st.parPersonne[q][base]/total*100}%;background:${coul(q)}"></span>`).join('')
     : '';
 
   v.innerHTML = `
@@ -479,8 +617,8 @@ function vBilan(v){
     <h2>Répartition</h2>
     <p class="aide">Part de chacun${base==='min'?', en temps passé':', en nombre de tâches'}.</p>
     <div class="barre">${segments}</div>
-    ${noms.map((q,i) => `<div class="champ" style="padding:6px 0">
-      <span><span class="puce" style="background:${COUL[i%4]}"></span>${esc(q)}</span>
+    ${noms.map(q => `<div class="champ" style="padding:6px 0">
+      <span><span class="puce" style="background:${coul(q)}"></span>${esc(q)}</span>
       <span class="aide" style="margin:0">${st.parPersonne[q].n} tâches · ${st.parPersonne[q].min} min${total?' · '+Math.round(st.parPersonne[q][base]/total*100)+'%':''}</span>
     </div>`).join('')}
     ${totalN ? '' : '<p class="aide">Rien de coché sur la période.</p>'}
@@ -555,27 +693,28 @@ function vTaches(v){
   const ts = [...S.data.taches].sort((a,b) =>
     (estActif(b)-estActif(a)) || String(a.nom).localeCompare(String(b.nom)));
   enTete('', 'Tâches', ts.filter(estActif).length + ' actives');
-  v.innerHTML = '<div style="padding:14px 20px 4px"><button class="btn" id="nouvelle">+ Nouvelle tâche</button></div>';
-  if(!ts.length) v.insertAdjacentHTML('beforeend', '<p class="vide">Aucune tâche pour l\'instant.</p>');
-  ts.forEach(t => {
-    const el = document.createElement('div');
-    el.className = 'row' + (estActif(t) ? '' : ' off');
-    el.innerHTML = '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
-      (t.qui ? '<span class="pers"></span>' : '') +
-      (estActif(t) ? '' : '<span class="tag">off</span>');
-    el.querySelector('.nom').textContent = t.nom;
-    el.querySelector('.meta').textContent =
-      [t.zone, (t.duree ? t.duree+' min' : ''), recurrenceLisible(t)].filter(Boolean).join(' · ');
-    if(t.qui) el.querySelector('.pers').textContent = t.qui;
-    el.onclick = () => { S.tacheEdit = {...t}; rendre(); };
-    v.appendChild(el);
-  });
-  const retour = document.createElement('button');
-  retour.className = 'btn sec';
-  retour.textContent = '‹ Retour aux réglages';
-  retour.style.cssText = 'width:calc(100% - 40px);margin:18px 20px';
-  retour.onclick = () => { S.vue = 'reglages'; rendre(); };
-  v.appendChild(retour);
+  v.innerHTML = '<div style="margin-top:16px"><button class="btn" id="nouvelle" style="margin:0">+ Nouvelle tâche</button></div>';
+  if(!ts.length){
+    v.insertAdjacentHTML('beforeend', '<p class="vide">Aucune tâche pour l\'instant.</p>');
+  }else{
+    const box = document.createElement('div');
+    box.className = 'liste';
+    box.style.marginTop = '14px';
+    ts.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'row' + (estActif(t) ? '' : ' off');
+      el.innerHTML = '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
+        (t.qui ? '<span class="pers"></span>' : '') +
+        (estActif(t) ? '' : '<span class="tag">off</span>');
+      el.querySelector('.nom').textContent = t.nom;
+      el.querySelector('.meta').textContent =
+        [t.zone, (t.duree ? t.duree+' min' : ''), recurrenceLisible(t)].filter(Boolean).join(' · ');
+      if(t.qui){ const p = el.querySelector('.pers'); p.textContent = t.qui; p.style.color = couleurPersonne(t.qui); }
+      el.onclick = () => { S.tacheEdit = {...t}; rendre(); };
+      box.appendChild(el);
+    });
+    v.appendChild(box);
+  }
   v.querySelector('#nouvelle').onclick = () => {
     S.tacheEdit = { id:'t'+Date.now(), nom:'', zone:'', qui:'', duree:0,
       mode:'jours', regle:'', actif:true, _nouveau:true };
@@ -601,8 +740,8 @@ function editeurTache(v){
     <div class="champ"><span>Active</span><span class="sw" id="e_actif"><i></i></span></div>
     <div class="err" id="e_err"></div>
     <button class="btn" id="e_save">Enregistrer</button>
-    ${t._nouveau ? '' : '<button class="btn sec" id="e_del">Supprimer la tâche</button>'}
     <button class="btn sec" id="e_annul">Annuler</button>
+    ${t._nouveau ? '' : '<button class="btn danger" id="e_del">Supprimer la tâche</button>'}
   </div>`;
 
   const $ = id => v.querySelector('#'+id);
@@ -673,8 +812,7 @@ function sw(cle, label, c){
   return `<div class="champ"><span>${label}</span><span class="sw${on?' on':''}" data-k="${cle}"><i></i></span></div>`;
 }
 
-document.querySelectorAll('nav button').forEach(b =>
-  b.onclick = () => { S.vue = b.dataset.v; S.ancre = new Date(); rendre(); });
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => aller(b.dataset.v));
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
@@ -698,7 +836,8 @@ if('serviceWorker' in navigator){
     location.reload();
   });
 }
-S.api ? charger() : (S.vue='reglages', rendre());
+if(S.data) rendre();
+S.api ? charger() : (S.vue = 'reglages', rendre());
 </script>
 </body>
 </html>
