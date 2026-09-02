@@ -123,9 +123,10 @@ main{padding:0 16px 112px}
 .nom{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .row.ok .nom{text-decoration:line-through;color:var(--muted);font-weight:400}
 .meta{display:block;font-size:12.5px;color:var(--muted);margin-top:1px}
-.tag,.pers{flex:none;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:11px;white-space:nowrap}
+.tag,.pers,.hint{flex:none;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:11px;white-space:nowrap}
 .tag{background:var(--late-bg);color:var(--late)}
 .pers{background:color-mix(in srgb,currentColor 15%,transparent)}
+.hint{color:var(--muted);border:1px dashed var(--line);padding:2px 8px}
 
 .vide{padding:54px 24px;text-align:center;color:var(--muted)}
 .vide svg{width:38px;height:38px;stroke:var(--hors);fill:none;stroke-width:1.6;
@@ -510,6 +511,8 @@ function rendre(){
     act.innerHTML = ICO.gear; act.onclick = () => aller('reglages');
   }
 
+  _enRetard = (S.data && (S.vue === 'jour' || S.vue === 'planning')) ? quiEnRetard() : null;
+
   if(!matchMedia('(prefers-reduced-motion:reduce)').matches)
     v.animate([{opacity:0, transform:'translateY(6px)'}, {opacity:1, transform:'none'}],
       {duration:250, easing:'cubic-bezier(.4,0,.2,1)'});
@@ -544,7 +547,8 @@ function ligne(t, dateStr){
     '<span class="box"><svg viewBox="0 0 24 24"><polyline points="4 12 10 18 20 6"/></svg></span>' +
     '<span class="txt"><span class="nom"></span><span class="meta"></span></span>' +
     (t.retard>0 ? '<span class="tag">+'+t.retard+' j</span>' : '') +
-    (t.qui ? '<span class="pers"></span>' : '');
+    (t.qui ? '<span class="pers"></span>' :
+      (!t.faite && _enRetard ? '<span class="hint">plutôt ' + esc(_enRetard) + '</span>' : ''));
   el.querySelector('.nom').textContent = t.nom;
   const bouts = [t.zone, t.duree+' min'];
   if(t.mode === 'intervalle'){
@@ -602,14 +606,46 @@ function bilanDuJour(){
   return { reste, nbFait: faites.size, total: reste.length + faites.size };
 }
 
+/* qui a le moins contribué sur 7 j (pour suggérer les tâches libres) */
+let _enRetard = null;
+function quiEnRetard(){
+  const gens = personnes();
+  if(gens.length < 2 || !S.data) return null;
+  const pp = statsPeriode(7).parPersonne;
+  const min = {};
+  gens.forEach(g => min[g] = (pp[g] || {min:0}).min);
+  const tri = gens.slice().sort((a,b) => min[a] - min[b]);
+  return (min[tri[tri.length-1]] - min[tri[0]] >= 20) ? tri[0] : null;
+}
+
+/* jours consécutifs (avec tâches datées) où tout a été fait */
+function serie(){
+  if(!S.data) return 0;
+  let n = 0, d = new Date();
+  if(bilanDuJour().reste.length) d = plus(d, -1);
+  const actives = S.data.taches.filter(estActif);
+  for(let i = 0; i < 370; i++){
+    const ds = ymd(d);
+    const dus = actives.filter(t => t.mode !== 'intervalle' && estDue(t, ds));
+    if(dus.length){
+      if(!dus.every(t => faite(t.id, ds))) break;
+      n++;
+    }
+    d = plus(d, -1);
+  }
+  return n;
+}
+
 function majCompteur(){
   const b = bilanDuJour();
   const min = b.reste.reduce((s,t)=>s+(Number(t.duree)||0),0);
   const dd = new Date();
+  const s = serie();
+  let sub = b.reste.length ? b.reste.length + (b.reste.length>1?' tâches restantes':' tâche restante')
+    : (b.total ? b.nbFait + (b.nbFait>1?' tâches faites':' tâche faite') : '');
+  if(s >= 3) sub += (sub ? ' · ' : '') + 'série de ' + s + ' j';
   enTete(cap(JOURS_L[dd.getDay()]) + ' ' + dd.getDate() + ' ' + MOIS_L[dd.getMonth()],
-    b.reste.length ? min + ' min' : (b.total ? 'Terminé' : 'Rien à faire'),
-    b.reste.length ? b.reste.length + (b.reste.length>1?' tâches restantes':' tâche restante')
-      : (b.total ? b.nbFait + (b.nbFait>1?' tâches faites':' tâche faite') : ''));
+    b.reste.length ? min + ' min' : (b.total ? 'Terminé' : 'Rien à faire'), sub);
   if(b.total) progres(b.nbFait, b.total);
   document.getElementById('prog').classList.toggle('plein', b.total > 0 && b.reste.length === 0);
 }
@@ -789,6 +825,17 @@ function vBilan(v){
     ? noms.map(q => `<span style="width:${st.parPersonne[q][base]/total*100}%;background:${coul(q)}"></span>`).join('')
     : '';
 
+  let ecartTxt = '';
+  const humains = noms.filter(q => q !== 'non attribué');
+  if(humains.length >= 2 && total){
+    const plus = humains[0], moins = humains[humains.length-1];
+    const e = st.parPersonne[plus][base] - st.parPersonne[moins][base];
+    const seuil = base === 'min' ? 15 : 2;
+    ecartTxt = e < seuil
+      ? '<p class="aide">Réparti à peu près également.</p>'
+      : `<p class="aide"><b style="color:var(--ink)">${esc(plus)}</b> a fait ${e}${base==='min'?' min':(e>1?' tâches':' tâche')} de plus.</p>`;
+  }
+
   v.innerHTML = `
   <div class="bloc">
     <div class="champ" style="justify-content:flex-start;gap:8px;padding:0 0 4px">
@@ -796,7 +843,7 @@ function vBilan(v){
       <button class="pilule${jours===30?' on':''}" data-j="30">30 jours</button>
     </div>
     <h2>Répartition</h2>
-    <p class="aide">Part de chacun${base==='min'?', en temps passé':', en nombre de tâches'}.</p>
+    ${ecartTxt || `<p class="aide">Part de chacun${base==='min'?', en temps passé':', en nombre de tâches'}.</p>`}
     <div class="barre">${segments}</div>
     ${noms.map(q => `<div class="champ" style="padding:6px 0">
       <span><span class="puce" style="background:${coul(q)}"></span>${esc(q)}</span>
@@ -809,6 +856,7 @@ function vBilan(v){
     <div class="champ" style="padding:6px 0"><span>Tâches faites</span><span>${st.faits.length} <span class="aide" style="margin:0">/ ~${st.attendu} prévues</span></span></div>
     <div class="champ" style="padding:6px 0"><span>Accomplissement</span><span>${st.accomplissement} %</span></div>
     <div class="champ" style="padding:6px 0"><span>Dans les temps</span><span>${st.ponctualite} %</span></div>
+    <div class="champ" style="padding:6px 0"><span>Série en cours</span><span>${serie()} j</span></div>
   </div>
   <div class="bloc">
     <h2>Jamais faites sur la période</h2>
