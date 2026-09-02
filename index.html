@@ -404,6 +404,7 @@ function derniereFois(id){
 
 function estDue(t, dateStr){
   const d = parseYmd(dateStr);
+  if(t.mode === 'quotidien') return true;
   if(t.mode === 'jours')
     return String(t.regle).split(',').map(s=>s.trim()).includes(JOURS[d.getDay()]);
   if(t.mode === 'mois'){
@@ -411,13 +412,28 @@ function estDue(t, dateStr){
     return d.getDate() === Math.min(parseInt(t.regle,10), dernier);
   }
   if(t.mode === 'intervalle'){
-    const n = parseInt(t.regle,10) || 1;
+    // projetée uniquement à sa date prévue (dernière fois + N jours)
     const last = derniereFois(t.id);
-    if(!last) return true;
-    return Math.round((d - parseYmd(last)) / 86400000) >= n;
+    if(!last) return false;
+    const n = parseInt(t.regle,10) || 1;
+    return dateStr === ymd(plus(parseYmd(last), n));
   }
   if(t.mode === 'date')
     return dateStr === String(t.regle);
+  return false;
+}
+
+/* tâches "en attente" un jour donné : intervalle en retard / jamais faite,
+   one-off en retard. Ajoutées à la vue du jour uniquement. */
+function enAttente(t, dateStr){
+  if(t.mode === 'date')
+    return String(t.regle) < dateStr && !derniereFois(t.id);
+  if(t.mode === 'intervalle'){
+    const last = derniereFois(t.id);
+    if(!last) return true;
+    const n = parseInt(t.regle,10) || 1;
+    return Math.round((parseYmd(dateStr) - parseYmd(last)) / 86400000) >= n;
+  }
   return false;
 }
 
@@ -435,6 +451,11 @@ function retard(t, dateStr){
 
 const faite = (id, dateStr) => (S.data.journal||[]).some(r => r.id===id && r.date===dateStr);
 
+function masquee(id, dateStr){
+  const s = JSON.parse(localStorage.getItem('snooze') || '{}');
+  return s[id] && s[id] >= dateStr;
+}
+
 function estActif(t){
   if(t.actif === false) return false;
   const s = String(t.actif).toLowerCase();
@@ -442,6 +463,7 @@ function estActif(t){
 }
 
 function recurrenceLisible(t){
+  if(t.mode === 'quotidien') return 'tous les jours';
   if(t.mode === 'jours') return String(t.regle);
   if(t.mode === 'mois') return 'le ' + t.regle + ' du mois';
   if(t.mode === 'intervalle') return 'tous les ' + t.regle + ' j';
@@ -464,8 +486,8 @@ function pourLeJour(dateStr){
   const auj = dateStr === ymd(new Date());
   return S.data.taches
     .filter(estActif)
-    .filter(t => estDue(t, dateStr) ||
-      (auj && t.mode === 'date' && String(t.regle) < dateStr && !derniereFois(t.id)))
+    .filter(t => !(auj && masquee(t.id, dateStr)))
+    .filter(t => estDue(t, dateStr) || (auj && enAttente(t, dateStr)))
     .map(t => ({...t, retard: retard(t,dateStr), faite: faite(t.id,dateStr)}))
     .sort((a,b) => (b.retard-a.retard) || (a.faite-b.faite) || a.nom.localeCompare(b.nom));
 }
@@ -728,7 +750,8 @@ function statsPeriode(jours){
 
   let attendu = 0;
   actives.forEach(t => {
-    if(t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours/7);
+    if(t.mode === 'quotidien') attendu += jours;
+    else if(t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours/7);
     else if(t.mode === 'mois') attendu += jours/30;
     else if(t.mode === 'intervalle') attendu += jours / (parseInt(t.regle,10) || 1);
     else if(t.mode === 'date'){
@@ -1013,7 +1036,7 @@ function vTaches(v){
   }
   v.querySelector('#nouvelle').onclick = () => {
     S.tacheEdit = { id:'t'+Date.now(), nom:'', zone:'', qui:'', duree:0,
-      mode:'jours', regle:'', actif:true, _nouveau:true };
+      mode:'quotidien', regle:'', actif:true, _nouveau:true };
     rendre();
   };
 }
@@ -1027,11 +1050,12 @@ function editeurTache(v){
     <div class="champ"><input type="text" id="e_zone" placeholder="Zone"><input type="number" id="e_duree" placeholder="min" style="max-width:30%"></div>
     <div class="champ"><span>Pour</span><select id="e_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}</select></div>
     <div class="champ"><span>Revient</span><select id="e_mode">
+      <option value="quotidien">tous les jours</option>
       <option value="jours">certains jours</option>
       <option value="mois">un jour du mois</option>
       <option value="intervalle">tous les N jours</option>
       <option value="date">une seule fois</option></select></div>
-    <div class="champ"><input type="text" class="large" id="e_regle"></div>
+    <div class="champ" id="e_regle_champ"><input type="text" class="large" id="e_regle"></div>
     <p class="aide" id="e_aide"></p>
     <div class="champ"><span>Active</span><span class="sw" id="e_actif"><i></i></span></div>
     <div class="err" id="e_err"></div>
@@ -1045,14 +1069,17 @@ function editeurTache(v){
   $('e_zone').value = t.zone || '';
   $('e_duree').value = t.duree || '';
   $('e_qui').value = t.qui || '';
-  const mode = $('e_mode'); mode.value = t.mode || 'jours';
+  const mode = $('e_mode'); mode.value = t.mode || 'quotidien';
   const regle = $('e_regle'), aide = $('e_aide'), actif = $('e_actif');
   actif.classList.toggle('on', estActif(t));
   actif.onclick = () => actif.classList.toggle('on');
 
   const majAide = garder => {
     const m = mode.value;
-    if(m === 'date'){
+    $('e_regle_champ').hidden = (m === 'quotidien');
+    if(m === 'quotidien'){
+      aide.textContent = 'La tâche revient chaque jour.';
+    } else if(m === 'date'){
       regle.type = 'date';
       aide.textContent = 'Le jour où la tâche doit être faite une fois.';
     } else {
@@ -1081,9 +1108,9 @@ function editeurTache(v){
     const err = $('e_err');
     const nom = $('e_nom').value.trim();
     const m = mode.value;
-    const r = regle.value.trim();
+    const r = m === 'quotidien' ? '' : regle.value.trim();
     if(!nom){ err.textContent = 'Donnez un nom à la tâche.'; return; }
-    if(!r){ err.textContent = 'Renseignez la récurrence.'; return; }
+    if(m !== 'quotidien' && !r){ err.textContent = 'Renseignez la récurrence.'; return; }
     if(m==='jours' && !r.split(',').every(x=>JOURS.includes(x.trim()))){
       err.textContent = 'Jours invalides. Exemple : lun,jeu'; return; }
     if((m==='mois' || m==='intervalle') && !/^\d+$/.test(r)){
@@ -1134,6 +1161,13 @@ if('serviceWorker' in navigator){
   });
 }
 appliquerTheme(S.theme);
+try{
+  const snz = JSON.parse(localStorage.getItem('snooze') || '{}');
+  const auj = ymd(new Date());
+  let chg = false;
+  for(const k in snz) if(snz[k] < auj){ delete snz[k]; chg = true; }
+  if(chg) localStorage.setItem('snooze', JSON.stringify(snz));
+}catch(e){}
 if(S.data) rendre();
 S.api ? charger() : (S.vue = 'reglages', rendre());
 </script>

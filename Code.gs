@@ -231,6 +231,7 @@ function derniereFois_(journal, id) {
 
 function estDue_(t, dateStr, journal) {
   var d = parseYmd_(dateStr);
+  if (t.mode === 'quotidien') return true;
   if (t.mode === 'jours') {
     return String(t.regle).split(',').map(function (s) { return s.trim(); })
       .indexOf(JOURS[d.getDay()]) >= 0;
@@ -379,7 +380,8 @@ function recap_(jours, titre) {
 
   var attendu = 0;
   taches.forEach(function (t) {
-    if (t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours / 7);
+    if (t.mode === 'quotidien') attendu += jours;
+    else if (t.mode === 'jours') attendu += String(t.regle).split(',').length * (jours / 7);
     else if (t.mode === 'mois') attendu += jours / 30;
     else if (t.mode === 'intervalle') attendu += jours / (parseInt(t.regle, 10) || 1);
     else if (t.mode === 'date') {
