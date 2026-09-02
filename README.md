@@ -58,7 +58,9 @@ l'app elle-même — aucune application tierce à installer.
 notifications** → accepter la demande du navigateur. Un bouton « Envoyer un test »
 permet de vérifier.
 
-- Les heures d'envoi se règlent dans Réglages → Notifications.
+- Réglages → Notifications : heures matin/soir, et deux interrupteurs pour choisir
+  quels rappels reçoit **cet appareil** (l'un peut n'avoir que le matin, l'autre les
+  deux, etc.).
 - **iPhone** : la PWA doit d'abord être « ajoutée à l'écran d'accueil » et ouverte
   depuis son icône (iOS 16.4+). Dans un simple onglet Safari, ça ne marche pas.
 - Le mode vacances suspend aussi les notifications.
@@ -75,14 +77,21 @@ Quatre onglets, éditables à la main si besoin.
 
 | mode | regle | signification |
 |---|---|---|
+| `quotidien` | *(vide)* | tous les jours |
 | `jours` | `lun,jeu` | ces jours de la semaine |
 | `mois` | `1` | ce jour du mois (ramené au dernier jour si le mois est plus court) |
-| `intervalle` | `14` | 14 jours après la dernière fois cochée |
+| `intervalle` | `14` | revient 14 jours après la dernière fois cochée |
 | `date` | `2026-09-15` | une seule fois, à cette date (réapparaît si non faite) |
 
-`qui` vide = tâche libre : celui qui coche est crédité.
+`qui` vide = tâche libre : celui qui coche est crédité. L'app suggère alors
+discrètement (« plutôt Alex ») la personne qui a le moins contribué sur 7 jours.
 `actif` à `FAUX` = tâche mise de côté (invisible dans les vues, modifiable dans
 Réglages → Tâches).
+
+Une tâche à **intervalle** n'est plus reproposée chaque jour : elle apparaît sur la
+vue du jour tant qu'elle est en retard, et dans le Planning uniquement à sa date
+prévue. Appui long sur une tâche → détail (dernière fois, qui) + « Modifier » +
+« Pas aujourd'hui » (masque jusqu'au lendemain, propre à l'appareil).
 
 **Journal** — une ligne par tâche cochée. Décocher supprime la ligne.
 
@@ -90,21 +99,22 @@ Réglages → Tâches).
 `mail_hebdo`, `mail_mensuel`, `vacances`, `heure_matin`, `heure_soir`. Les booléens
 et les heures se pilotent depuis l'app.
 
-**Push** — un abonnement aux notifications par appareil. Géré automatiquement
-(les endpoints morts sont purgés à l'envoi).
+**Push** — un abonnement aux notifications par appareil (`endpoint`, clés, `qui`,
+`matin`, `soir`). Géré automatiquement ; les endpoints morts sont purgés à l'envoi.
 
 ## 5. Les thèmes
 
-Réglages → Thème : **Foyer**, **Sauge**, **Ardoise**, **Nuit**. Propre à chaque
-appareil. Les trois premiers suivent le mode clair/sombre du téléphone ; Nuit est
-toujours sombre.
+Réglages → Thème : **Foyer**, **Forêt**, **Argile**, **Marine**, **Prune**, **Nuit**.
+Propre à chaque appareil. Tous sauf Nuit suivent le mode clair/sombre du téléphone.
 
 ## Limites connues
 
 - Hors ligne, les cochages sont mis en file d'attente et synchronisés au retour du
   réseau (ou à la réouverture de l'app). Un bandeau indique le nombre en attente.
-- Les tâches à intervalle sont projetées à titre indicatif dans le Planning : leur
-  vraie date dépend du moment où elles sont cochées.
+- Les tâches à intervalle sont projetées à titre indicatif dans le Planning (date
+  prévue = dernière fois + N jours) ; la vraie date dépend du moment où on coche.
+- « Pas aujourd'hui » et le thème sont propres à chaque appareil (stockés en local,
+  pas dans le Sheet).
 - Après un `Déployer`, choisissez toujours « Gérer les déploiements » puis modifiez
   le déploiement existant. Un nouveau déploiement change l'URL et casse le raccourci.
 - Si le navigateur bloque les appels pour cause de CORS, vérifiez que l'accès est
