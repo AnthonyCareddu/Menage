@@ -5,31 +5,56 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Ménage</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f4f1ea" media="(prefers-color-scheme:light)">
-<meta name="theme-color" content="#1a1613" media="(prefers-color-scheme:dark)">
+<meta name="theme-color" id="tc" content="#f4f1ea">
+<script>try{var _t=localStorage.getItem('theme');if(_t)document.documentElement.dataset.theme=_t;}catch(e){}</script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
 <style>
-:root{
-  --page:#f4f1ea; --card:#fffdf7; --ink:#2a2723; --muted:#8b8177;
-  --line:#e8e2d6; --accent:#2d6a4f; --accent-bg:#dcebe2;
-  --late:#bd6b3c; --late-bg:#f6e7db;
-  --p1:#2d6a4f; --p2:#b5654d; --p3:#5b7aa8; --p4:#8a6bab;
-  --hors:#c9c1b3; --err:#b23b31;
-  --ombre:0 1px 2px rgba(42,39,35,.05), 0 14px 30px -16px rgba(42,39,35,.16);
-  --r:18px;
+:root{ --p3:#5b7aa8; --p4:#8a6bab; --r:18px;
+  --ombre:0 1px 2px rgba(42,39,35,.05), 0 14px 30px -16px rgba(42,39,35,.16); }
+:root, :root[data-theme=foyer]{
+  --page:#f4f1ea; --card:#fffdf7; --ink:#2a2723; --muted:#8b8177; --line:#e8e2d6;
+  --accent:#2d6a4f; --accent-bg:#dcebe2; --late:#bd6b3c; --late-bg:#f6e7db;
+  --p1:#2d6a4f; --p2:#b5654d; --hors:#c9c1b3; --err:#b23b31;
 }
-@media(prefers-color-scheme:dark){
-  :root{
-    --page:#1a1613; --card:#241f1b; --ink:#ece4d9; --muted:#9c9184;
-    --line:#362f28; --accent:#63b088; --accent-bg:#25342d;
-    --late:#d98a5a; --late-bg:#38291d;
-    --p1:#63b088; --p2:#d98a5a; --p3:#8aa8d4; --p4:#b199d6;
-    --hors:#4c453c; --err:#e0776e;
-    --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
-  }
+@media(prefers-color-scheme:dark){ :root:not([data-theme]), :root[data-theme=foyer]{
+  --page:#1a1613; --card:#241f1b; --ink:#ece4d9; --muted:#9c9184; --line:#362f28;
+  --accent:#63b088; --accent-bg:#25342d; --late:#d98a5a; --late-bg:#38291d;
+  --p1:#63b088; --p2:#d98a5a; --hors:#4c453c; --err:#e0776e;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
+}}
+
+:root[data-theme=sauge]{
+  --page:#eef0ea; --card:#fbfcf8; --ink:#33372f; --muted:#868b7d; --line:#dde0d5;
+  --accent:#5f7a5a; --accent-bg:#e2e8dd; --late:#a9764a; --late-bg:#efe6d9;
+  --p1:#5f7a5a; --p2:#a9764a; --hors:#c4c8ba; --err:#a8473a;
+}
+@media(prefers-color-scheme:dark){ :root[data-theme=sauge]{
+  --page:#191b17; --card:#23261f; --ink:#e5e8dd; --muted:#949a89; --line:#33362d;
+  --accent:#90ac89; --accent-bg:#2a3227; --late:#cfa06f; --late-bg:#33291d;
+  --p1:#90ac89; --p2:#cfa06f; --hors:#4a4d42; --err:#dd8474;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
+}}
+
+:root[data-theme=ardoise]{
+  --page:#eef1f4; --card:#ffffff; --ink:#22282f; --muted:#7c8794; --line:#dde3e9;
+  --accent:#3a6b8a; --accent-bg:#dbe8f0; --late:#b06a45; --late-bg:#f2e5dc;
+  --p1:#3a6b8a; --p2:#b06a45; --hors:#c2cad2; --err:#b0473a;
+}
+@media(prefers-color-scheme:dark){ :root[data-theme=ardoise]{
+  --page:#14181c; --card:#1d232a; --ink:#e5eaf0; --muted:#8b97a4; --line:#2b333c;
+  --accent:#6fa8c9; --accent-bg:#22303a; --late:#d3946c; --late-bg:#33281f;
+  --p1:#6fa8c9; --p2:#d3946c; --hors:#454e57; --err:#e0776e;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
+}}
+
+:root[data-theme=nuit]{
+  --page:#101216; --card:#1a1e25; --ink:#e8ebf0; --muted:#8891a0; --line:#262b34;
+  --accent:#7aa2f7; --accent-bg:#212a3d; --late:#e0a45c; --late-bg:#33291c;
+  --p1:#7aa2f7; --p2:#e0a45c; --hors:#3c434f; --err:#e0776e;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 34px -16px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--page);color:var(--ink);
@@ -129,6 +154,16 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .btn:active{transform:scale(.985)}
 .btn.sec{background:none;color:var(--accent)}
 .btn.danger{background:none;border-color:color-mix(in srgb,var(--err) 45%,transparent);color:var(--err)}
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.theme-chip{display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid var(--line);
+  border-radius:12px;background:none;color:var(--ink);font-weight:600;font-size:13.5px}
+.theme-chip.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.theme-apercu{width:32px;height:32px;border-radius:9px;flex:none;border:1px solid rgba(0,0,0,.08);
+  background:linear-gradient(135deg,var(--sw-p) 0 52%,var(--sw-a) 52% 100%)}
+.theme-apercu[data-t=foyer]{--sw-p:#f4f1ea;--sw-a:#2d6a4f}
+.theme-apercu[data-t=sauge]{--sw-p:#eef0ea;--sw-a:#5f7a5a}
+.theme-apercu[data-t=ardoise]{--sw-p:#eef1f4;--sw-a:#3a6b8a}
+.theme-apercu[data-t=nuit]{--sw-p:#101216;--sw-a:#7aa2f7}
 .sw{position:relative;width:44px;height:26px;border-radius:13px;background:var(--line);
   flex:none;transition:background .2s}
 .sw.on{background:var(--accent)}
@@ -185,8 +220,24 @@ const S = {
   ancre: new Date(),
   tacheEdit: null,
   bilanPeriode: 7,
-  planningVue: 'semaine'
+  planningVue: 'semaine',
+  theme: localStorage.getItem('theme') || 'foyer'
 };
+
+const THEMES = [['foyer','Foyer'], ['sauge','Sauge'], ['ardoise','Ardoise'], ['nuit','Nuit']];
+
+function majBarreEtat(){
+  const pg = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
+  if(pg) document.getElementById('tc').setAttribute('content', pg);
+}
+
+function appliquerTheme(nom){
+  S.theme = nom || 'foyer';
+  document.documentElement.dataset.theme = S.theme;
+  localStorage.setItem('theme', S.theme);
+  majBarreEtat();
+}
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change', majBarreEtat);
 
 const ICO = {
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"/></svg>',
@@ -658,6 +709,14 @@ function vReglages(v){
     <div class="champ"><select id="moi">${gens.map(g=>`<option${g===S.moi?' selected':''}>${g}</option>`).join('')}</select></div>
   </div>
   <div class="bloc">
+    <h2>Thème</h2>
+    <p class="aide">Propre à cet appareil. Les 3 premiers suivent le mode clair/sombre du téléphone.</p>
+    <div class="themes">
+      ${THEMES.map(([id,nom]) => `<button class="theme-chip${S.theme===id?' on':''}" data-t="${id}">
+        <span class="theme-apercu" data-t="${id}"></span>${nom}</button>`).join('')}
+    </div>
+  </div>
+  <div class="bloc">
     <h2>Tâches</h2>
     <p class="aide">Ajouter, modifier, désactiver ou supprimer une tâche.</p>
     <button class="btn sec" id="gererTaches">Gérer les tâches →</button>
@@ -688,6 +747,10 @@ function vReglages(v){
   v.querySelector('#moi').onchange = e => {
     S.moi = e.target.value; localStorage.setItem('moi', S.moi); majConf();
   };
+  v.querySelectorAll('.theme-chip').forEach(b => b.onclick = () => {
+    appliquerTheme(b.dataset.t);
+    vReglages(document.getElementById('vue'));
+  });
   v.querySelector('#gererTaches').onclick = () => { S.tacheEdit = null; S.vue = 'taches'; rendre(); };
   v.querySelectorAll('.sw').forEach(el => el.onclick = () => {
     const on = !el.classList.contains('on');
@@ -941,6 +1004,7 @@ if('serviceWorker' in navigator){
     location.reload();
   });
 }
+appliquerTheme(S.theme);
 if(S.data) rendre();
 S.api ? charger() : (S.vue = 'reglages', rendre());
 </script>
