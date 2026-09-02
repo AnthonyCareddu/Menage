@@ -663,19 +663,31 @@ function vReglages(v){
     <button class="btn sec" id="gererTaches">Gérer les tâches →</button>
   </div>
   <div class="bloc">
-    <h2>Envois automatiques</h2>
-    ${sw('mail_quotidien','Mail quotidien',c)}
+    <h2>Notifications</h2>
+    <p class="aide">Un rappel le matin (tâches du jour) et le soir (ce qui reste), sur cet appareil. Aucune appli à installer.</p>
+    <div id="n_etat" class="aide" style="margin-bottom:10px">Vérification…</div>
+    <div id="n_actions"></div>
+    <div class="champ"><span>Heure du matin</span><input type="number" id="h_matin" min="0" max="23" style="max-width:70px"></div>
+    <div class="champ"><span>Heure du soir</span><input type="number" id="h_soir" min="0" max="23" style="max-width:70px"></div>
+    <p class="aide">Sur iPhone : « Ajouter à l'écran d'accueil » d'abord, puis ouvrir depuis l'icône (iOS 16.4+).</p>
+  </div>
+  <div class="bloc">
+    <h2>E-mails automatiques</h2>
+    ${sw('mail_quotidien','Récap du matin',c)}
+    ${sw('mail_soir','Récap du soir',c)}
     ${sw('mail_hebdo','Récap hebdomadaire',c)}
     ${sw('mail_mensuel','Récap mensuel',c)}
     ${sw('vacances','Mode vacances',c)}
-    <p class="aide">Le mode vacances suspend tous les envois sans rien effacer.</p>
+    <p class="aide">Le mode vacances suspend tous les envois (mails et notifications) sans rien effacer.</p>
   </div>`;
 
   const api_ = v.querySelector('#api'); api_.value = S.api;
   v.querySelector('#saveApi').onclick = () => {
-    S.api = api_.value.trim(); localStorage.setItem('api', S.api); charger();
+    S.api = api_.value.trim(); localStorage.setItem('api', S.api); majConf(); charger();
   };
-  v.querySelector('#moi').onchange = e => { S.moi = e.target.value; localStorage.setItem('moi', S.moi); };
+  v.querySelector('#moi').onchange = e => {
+    S.moi = e.target.value; localStorage.setItem('moi', S.moi); majConf();
+  };
   v.querySelector('#gererTaches').onclick = () => { S.tacheEdit = null; S.vue = 'taches'; rendre(); };
   v.querySelectorAll('.sw').forEach(el => el.onclick = () => {
     const on = !el.classList.contains('on');
@@ -684,6 +696,98 @@ function vReglages(v){
     localStorage.setItem('cache', JSON.stringify(S.data));
     envoyer({action:'setConfig', cle:el.dataset.k, valeur:on?'oui':'non'});
   });
+
+  const hm = v.querySelector('#h_matin'), hs = v.querySelector('#h_soir');
+  hm.value = c.heure_matin || '7';
+  hs.value = c.heure_soir || '19';
+  const majHeure = (cle, el) => {
+    const n = parseInt(el.value, 10);
+    if(isNaN(n) || n < 0 || n > 23){ el.value = (S.data.config && S.data.config[cle]) || ''; return; }
+    if(S.data) S.data.config[cle] = String(n);
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    envoyer({action:'setConfig', cle, valeur:String(n)});
+  };
+  hm.onchange = () => majHeure('heure_matin', hm);
+  hs.onchange = () => majHeure('heure_soir', hs);
+
+  majEtatNotifs(v);
+}
+
+/* --------------------------------------------------- notifications push */
+
+function notifsSupportees(){
+  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+function b64urlToU8(s){
+  const b = atob(s.replace(/-/g,'+').replace(/_/g,'/'));
+  const u = new Uint8Array(b.length);
+  for(let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+
+async function majConf(){
+  if(!('caches' in window)) return;
+  try{
+    const c = await caches.open('conf');
+    await c.put('api', new Response(S.api || ''));
+    await c.put('moi', new Response(S.moi || ''));
+  }catch(e){}
+}
+
+async function majEtatNotifs(v){
+  const etat = v.querySelector('#n_etat'), actions = v.querySelector('#n_actions');
+  if(!etat) return;
+  const dire = m => etat.textContent = m;
+  if(!notifsSupportees()){ dire('Non disponible sur ce navigateur.'); return; }
+  if(Notification.permission === 'denied'){
+    dire('Notifications bloquées. Autorisez-les dans les réglages du navigateur pour cet appareil.'); return;
+  }
+  const reg = await navigator.serviceWorker.ready.catch(() => null);
+  const sub = reg ? await reg.pushManager.getSubscription() : null;
+  dire(sub ? 'Activées sur cet appareil.' : 'Pas encore activées sur cet appareil.');
+  if(sub){
+    actions.innerHTML =
+      '<button class="btn sec" id="n_test" style="margin-top:0">Envoyer un test</button>' +
+      '<button class="btn danger" id="n_off">Désactiver ici</button>';
+    actions.querySelector('#n_test').onclick = async () => {
+      dire('Envoi du test…');
+      try{ await api({action:'testPush'}); dire('Test envoyé — la notification arrive dans quelques secondes.'); }
+      catch(e){ dire('Échec du test : ' + e.message); }
+    };
+    actions.querySelector('#n_off').onclick = async () => {
+      try{
+        await sub.unsubscribe();
+        await envoyer({action:'unsubscribePush', endpoint: sub.endpoint});
+      }catch(e){}
+      localStorage.removeItem('notifs');
+      vReglages(document.getElementById('vue'));
+    };
+  }else{
+    actions.innerHTML = '<button class="btn" id="n_on" style="margin-top:0">Activer les notifications</button>';
+    actions.querySelector('#n_on').onclick = () => activerNotifs(v);
+  }
+}
+
+async function activerNotifs(v){
+  const etat = v.querySelector('#n_etat');
+  const dire = m => { if(etat) etat.textContent = m; };
+  try{
+    dire('Autorisation…');
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ dire('Permission refusée.'); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const cle = await api({action:'vapidPublic'});
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: b64urlToU8(cle) });
+    const j = sub.toJSON();
+    await majConf();
+    const ok = await envoyer({ action:'subscribePush', endpoint:j.endpoint,
+      p256dh:j.keys.p256dh, auth:j.keys.auth, qui:S.moi || '' });
+    if(!ok){ dire('Enregistré localement — se synchronisera au retour du réseau.'); }
+    localStorage.setItem('notifs','1');
+    vReglages(document.getElementById('vue'));
+  }catch(e){ dire('Échec : ' + e.message); }
 }
 
 /* ---------------------------------------------------------- tâches */
@@ -816,6 +920,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => aller(b.d
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
+    majConf();
     reg.addEventListener('updatefound', () => {
       const nv = reg.installing;
       if(!nv) return;

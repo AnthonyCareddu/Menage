@@ -35,16 +35,21 @@ function setup() {
 
   var c = ss.insertSheet('Config');
   c.getRange(1, 1, 1, 2).setValues([['cle', 'valeur']]).setFontWeight('bold');
-  c.getRange(2, 1, 7, 2).setValues([
+  c.getRange(2, 1, 10, 2).setValues([
     ['personnes', 'Antho,Alexandra'],
     ['destinataires', Session.getActiveUser().getEmail()],
     ['mail_quotidien', 'oui'],
+    ['mail_soir', 'non'],
     ['mail_hebdo', 'oui'],
     ['mail_mensuel', 'oui'],
     ['vacances', 'non'],
+    ['heure_matin', '7'],
+    ['heure_soir', '19'],
     ['heure_envoi', '7']
   ]);
 
+  pushSheet_();
+  vapidKeys_();
   installerDeclencheurs();
   Logger.log('Base créée : ' + ss.getUrl());
   return ss.getUrl();
@@ -52,10 +57,13 @@ function setup() {
 
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers().forEach(function (tr) { ScriptApp.deleteTrigger(tr); });
-  var h = parseInt(config().heure_envoi || '7', 10);
-  ScriptApp.newTrigger('mailQuotidien').timeBased().everyDays(1).atHour(h).create();
-  ScriptApp.newTrigger('mailHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(h).create();
-  ScriptApp.newTrigger('mailMensuel').timeBased().onMonthDay(1).atHour(h).create();
+  var c = config();
+  var hm = parseInt(c.heure_matin || c.heure_envoi || '7', 10);
+  var hs = parseInt(c.heure_soir || '19', 10);
+  ScriptApp.newTrigger('digestMatin').timeBased().everyDays(1).atHour(hm).create();
+  ScriptApp.newTrigger('digestSoir').timeBased().everyDays(1).atHour(hs).create();
+  ScriptApp.newTrigger('mailHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(hm).create();
+  ScriptApp.newTrigger('mailMensuel').timeBased().onMonthDay(1).atHour(hm).create();
 }
 
 /**
@@ -66,8 +74,13 @@ function migrer() {
   var ss = ss_();
   // la colonne "regle" doit rester du texte, sinon Sheets convertit "2026-09-15" en date
   ss.getSheetByName('Taches').getRange('G:G').setNumberFormat('@');
+  // nouvelles clés de config (ne touche pas à celles qui existent déjà)
+  [['mail_soir', 'non'], ['heure_matin', config().heure_envoi || '7'], ['heure_soir', '19']]
+    .forEach(function (kv) { if (config()[kv[0]] === undefined) setConfig_(kv[0], kv[1]); });
+  pushSheet_();
+  vapidKeys_();
   installerDeclencheurs();
-  Logger.log('Migration OK');
+  Logger.log('Migration OK — clé VAPID publique : ' + vapidKeys_().pub);
 }
 
 /* ------------------------------------------------------------- accès Sheet */
@@ -128,6 +141,11 @@ function router_(action, p) {
     case 'saveTache': return saveTache_(JSON.parse(p.tache));
     case 'deleteTache': return deleteTache_(p.id);
     case 'setConfig': return setConfig_(p.cle, p.valeur);
+    case 'vapidPublic': return vapidKeys_().pub;
+    case 'subscribePush': return subscribePush_(p);
+    case 'unsubscribePush': return unsubscribePush_(p.endpoint);
+    case 'digest': return digest_(p.moment, p.qui);
+    case 'testPush': return envoyerPush_(p.moment || 'matin');
     default: throw new Error('Action inconnue : ' + action);
   }
 }
@@ -192,10 +210,12 @@ function deleteTache_(id) {
 function setConfig_(cle, valeur) {
   var sh = ss_().getSheetByName('Config');
   var v = sh.getDataRange().getValues();
+  var trouve = false;
   for (var i = 1; i < v.length; i++) {
-    if (String(v[i][0]) === cle) { sh.getRange(i + 1, 2).setValue(valeur); return { ok: true }; }
+    if (String(v[i][0]) === cle) { sh.getRange(i + 1, 2).setValue(valeur); trouve = true; break; }
   }
-  sh.appendRow([cle, valeur]);
+  if (!trouve) sh.appendRow([cle, valeur]);
+  if (cle === 'heure_matin' || cle === 'heure_soir') installerDeclencheurs();
   return { ok: true };
 }
 
@@ -287,8 +307,21 @@ function css_() {
   return 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#14181b;line-height:1.6';
 }
 
-function mailQuotidien() {
-  if (!actif_('mail_quotidien') || enVacances_()) return;
+/* déclenché le matin : notification push + (option) e-mail */
+function digestMatin() {
+  if (enVacances_()) return;
+  envoyerPush_('matin');
+  if (actif_('mail_quotidien')) mailMatin_();
+}
+
+/* déclenché le soir : notification push + (option) e-mail */
+function digestSoir() {
+  if (enVacances_()) return;
+  envoyerPush_('soir');
+  if (actif_('mail_soir')) mailSoir_();
+}
+
+function mailMatin_() {
   var today = ymd_(new Date());
   var l = tachesDuJour_(today).filter(function (t) { return !t.faite; });
   if (!l.length) return;
@@ -301,6 +334,24 @@ function mailQuotidien() {
       (t.retard > 0 ? ' <b style="color:#b8730f">+' + t.retard + ' j</b>' : '') + '</li>';
   });
   envoyer_('Ménage — ' + l.length + ' tâches aujourd\'hui', html + '</ul></div>');
+}
+
+function mailSoir_() {
+  var today = ymd_(new Date());
+  var l = tachesDuJour_(today);
+  if (!l.length) return;
+  var faites = l.filter(function (t) { return t.faite; });
+  var reste = l.filter(function (t) { return !t.faite; });
+  var html = '<div style="' + css_() + '"><h2 style="font-weight:500">Ménage — ce soir</h2>' +
+    '<p style="color:#6b7573">' + faites.length + ' faites · ' + reste.length + ' à faire</p>';
+  if (reste.length) {
+    html += '<ul>' + reste.map(function (t) {
+      return '<li>' + t.nom + (t.retard > 0 ? ' <b style="color:#b8730f">+' + t.retard + ' j</b>' : '') + '</li>';
+    }).join('') + '</ul>';
+  } else {
+    html += '<p>Tout est fait pour aujourd\'hui.</p>';
+  }
+  envoyer_('Ménage — ' + reste.length + ' tâche(s) restante(s)', html + '</div>');
 }
 
 function mailHebdo() { if (actif_('mail_hebdo') && !enVacances_()) recap_(7, 'Récap de la semaine'); }
@@ -356,4 +407,256 @@ function recap_(jours, titre) {
     ? oubliees.map(function (t) { return '<li>' + t.nom + '</li>'; }).join('')
     : '<li style="color:#6b7573">Aucune, tout est passé au moins une fois</li>';
   envoyer_(titre, html + '</ul></div>');
+}
+
+/* ==================================================================== */
+/* WEB PUSH — VAPID + ECDSA P-256 en BigInt pur (Apps Script n'a pas     */
+/* de signature ECDSA native). On envoie un push VIDE ; le service       */
+/* worker va chercher lui-même le contenu via action=digest.            */
+/* ==================================================================== */
+
+var _P  = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+var _A  = _P - BigInt(3);
+var _N  = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+var _GX = BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296');
+var _GY = BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5');
+var _0 = BigInt(0), _1 = BigInt(1), _2 = BigInt(2), _3 = BigInt(3), _8 = BigInt(8), _FF = BigInt(255);
+
+function _mod(a, m) { return ((a % m) + m) % m; }
+
+function _modInv(a, m) {
+  a = _mod(a, m);
+  var r0 = a, r = m, s0 = _1, s = _0, t;
+  while (r !== _0) {
+    var q = r0 / r;
+    t = r; r = r0 - q * r; r0 = t;
+    t = s; s = s0 - q * s; s0 = t;
+  }
+  return _mod(s0, m);
+}
+
+function _ptAdd(p, q) {
+  if (!p) return q;
+  if (!q) return p;
+  var x1 = p[0], y1 = p[1], x2 = q[0], y2 = q[1], m;
+  if (x1 === x2 && _mod(y1 + y2, _P) === _0) return null;
+  if (x1 === x2 && y1 === y2) m = _mod((_3 * x1 * x1 + _A) * _modInv(_2 * y1, _P), _P);
+  else m = _mod((y2 - y1) * _modInv(x2 - x1, _P), _P);
+  var x3 = _mod(m * m - x1 - x2, _P);
+  return [x3, _mod(m * (x1 - x3) - y1, _P)];
+}
+
+function _ptMul(k, p) {
+  var r = null, a = p;
+  while (k > _0) { if (k & _1) r = _ptAdd(r, a); a = _ptAdd(a, a); k >>= _1; }
+  return r;
+}
+
+/* octets non signés <-> Java bytes signés <-> BigInt */
+function _s(b) { var o = []; for (var i = 0; i < b.length; i++) o.push(b[i] > 127 ? b[i] - 256 : b[i]); return o; }
+function _u(b) { var o = []; for (var i = 0; i < b.length; i++) o.push(b[i] < 0 ? b[i] + 256 : b[i]); return o; }
+function _cat() { var o = []; for (var i = 0; i < arguments.length; i++) { var a = arguments[i]; for (var j = 0; j < a.length; j++) o.push(a[j]); } return o; }
+function _fill(n, v) { var o = []; for (var i = 0; i < n; i++) o.push(v); return o; }
+function _b2big(b) { var x = _0; for (var i = 0; i < b.length; i++) x = (x << _8) | BigInt(b[i] & 255); return x; }
+function _big2b(x, len) { var o = _fill(len, 0); for (var i = len - 1; i >= 0; i--) { o[i] = Number(x & _FF); x >>= _8; } return o; }
+function _strBytes(str) { return _u(Utilities.newBlob(str).getBytes()); }
+
+function _sha256(bytes) { return _u(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, _s(bytes))); }
+function _hmac(key, data) { return _u(Utilities.computeHmacSha256Signature(_s(data), _s(key))); }
+
+function _b64url(bytes) { return Utilities.base64EncodeWebSafe(_s(bytes)).replace(/=+$/, ''); }
+function _b64urlDec(str) {
+  var s = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return _u(Utilities.base64Decode(s));
+}
+
+/* RFC 6979 : nonce déterministe (pas besoin d'aléa sûr) */
+function _rfc6979(h1, priv) {
+  var x = _big2b(priv, 32);
+  var V = _fill(32, 1), K = _fill(32, 0);
+  K = _hmac(K, _cat(V, [0], x, h1)); V = _hmac(K, V);
+  K = _hmac(K, _cat(V, [1], x, h1)); V = _hmac(K, V);
+  var premier = true;
+  return {
+    suivant: function () {
+      while (true) {
+        if (!premier) { K = _hmac(K, _cat(V, [0])); V = _hmac(K, V); }
+        premier = false;
+        var T = [];
+        while (T.length < 32) { V = _hmac(K, V); T = _cat(T, V); }
+        var k = _b2big(T.slice(0, 32));
+        if (k >= _1 && k < _N) return k;
+      }
+    }
+  };
+}
+
+/* signature ECDSA P-256, sortie r||s (64 octets, format JWS ES256) */
+function _signP256(msgBytes, privBytes) {
+  var priv = _b2big(privBytes);
+  var h = _sha256(msgBytes);
+  var z = _b2big(h);
+  var gen = _rfc6979(h, priv);
+  for (var i = 0; i < 20; i++) {
+    var k = gen.suivant();
+    var R = _ptMul(k, [_GX, _GY]);
+    var r = _mod(R[0], _N);
+    if (r === _0) continue;
+    var s = _mod(_modInv(k, _N) * (z + r * priv), _N);
+    if (s === _0) continue;
+    return _cat(_big2b(r, 32), _big2b(s, 32));
+  }
+  throw new Error('signature P-256 impossible');
+}
+
+/* vecteur RFC 6979 A.2.5 — à lancer une fois pour valider la crypto dans Apps Script */
+function testCryptoPush() {
+  var x = _b64urlDec('ya-p2EW6dRZrXCFXZ7HWk05Qw9s26JsSe4piKxIPZyE'); // clé privée du vecteur
+  var sig = _signP256(_strBytes('sample'), x);
+  var r = _b64url(sig.slice(0, 32)), s = _b64url(sig.slice(32));
+  var ok = (r === '79SLKqy2qP0RQN2c1F6B1p0sh3tWqvmRw00OqE6vNxY' &&
+            s === '98sclC1lfEHUNsehtuKfZfPpANu5r_QGTcSrL4Q6zag');
+  Logger.log('testCryptoPush : ' + (ok ? 'OK — signature ECDSA correcte' : 'ÉCHEC\n r=' + r + '\n s=' + s));
+  return ok;
+}
+
+/* ----------------------------------------------------- clés VAPID */
+
+function genererVapid_() {
+  var seed = Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid() + String(new Date().getTime());
+  var d = _b2big(_sha256(_strBytes(seed)));
+  d = _mod(d, _N - _1) + _1;
+  var Q = _ptMul(d, [_GX, _GY]);
+  var pub = _cat([4], _big2b(Q[0], 32), _big2b(Q[1], 32));
+  return { priv: _b64url(_big2b(d, 32)), pub: _b64url(pub) };
+}
+
+function vapidKeys_() {
+  var pub = PROP.getProperty('VAPID_PUB');
+  var priv = PROP.getProperty('VAPID_PRIV');
+  if (!pub || !priv) {
+    var kp = genererVapid_();
+    PROP.setProperty('VAPID_PUB', kp.pub);
+    PROP.setProperty('VAPID_PRIV', kp.priv);
+    return kp;
+  }
+  return { pub: pub, priv: priv };
+}
+
+function vapidJwt_(audience) {
+  var v = vapidKeys_();
+  var subj = 'mailto:' + String(config().destinataires || 'menage@example.com').split(',')[0].trim();
+  var header = _b64url(_strBytes(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  var body = _b64url(_strBytes(JSON.stringify({
+    aud: audience,
+    exp: Math.floor(Date.now() / 1000) + 12 * 3600,
+    sub: subj
+  })));
+  var input = header + '.' + body;
+  var sig = _signP256(_strBytes(input), _b64urlDec(v.priv));
+  return { jwt: input + '.' + _b64url(sig), k: v.pub };
+}
+
+/* ------------------------------------------------ feuille Push */
+
+function pushSheet_() {
+  var ss = ss_();
+  var sh = ss.getSheetByName('Push');
+  if (!sh) {
+    sh = ss.insertSheet('Push');
+    sh.getRange(1, 1, 1, 5).setValues([['endpoint', 'p256dh', 'auth', 'qui', 'ajoute']]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function pushSubs_() {
+  return lire_('Push').filter(function (r) { return r.endpoint; });
+}
+
+function subscribePush_(p) {
+  var sh = pushSheet_();
+  var v = sh.getDataRange().getValues();
+  var ligne = [p.endpoint, p.p256dh || '', p.auth || '', p.qui || '', new Date()];
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][0]) === p.endpoint) {
+      sh.getRange(i + 1, 1, 1, 5).setValues([ligne]);
+      return { maj: true };
+    }
+  }
+  sh.appendRow(ligne);
+  return { ajoute: true };
+}
+
+function unsubscribePush_(endpoint) {
+  var sh = pushSheet_();
+  var v = sh.getDataRange().getValues();
+  for (var i = v.length - 1; i >= 1; i--) {
+    if (String(v[i][0]) === endpoint) { sh.deleteRow(i + 1); return { supprime: true }; }
+  }
+  return { supprime: false };
+}
+
+/* ------------------------------------------------ envoi des push */
+
+function envoyerPush_(moment) {
+  var subs = pushSubs_();
+  if (!subs.length) return { envoyes: 0, abonnes: 0 };
+  var envoyes = 0, morts = [], jwts = {};
+  subs.forEach(function (s) {
+    try {
+      var parts = String(s.endpoint).split('/');
+      var aud = parts[0] + '//' + parts[2];
+      if (!jwts[aud]) jwts[aud] = vapidJwt_(aud);
+      var v = jwts[aud];
+      var res = UrlFetchApp.fetch(s.endpoint, {
+        method: 'post',
+        headers: { 'TTL': '3600', 'Authorization': 'vapid t=' + v.jwt + ', k=' + v.k },
+        payload: '',
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      if (code === 200 || code === 201) envoyes++;
+      else if (code === 404 || code === 410) morts.push(s.endpoint);
+      else Logger.log('push ' + code + ' : ' + res.getContentText().slice(0, 200));
+    } catch (e) {
+      Logger.log('push erreur : ' + e);
+    }
+  });
+  morts.forEach(unsubscribePush_);
+  return { envoyes: envoyes, abonnes: subs.length, retires: morts.length };
+}
+
+/* --------------------------------- contenu du digest (matin / soir) */
+
+function digest_(moment, qui) {
+  if (!moment) {
+    var h = parseInt(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'H'), 10);
+    moment = h < 14 ? 'matin' : 'soir';
+  }
+  var today = ymd_(new Date());
+  var l = tachesDuJour_(today).filter(function (t) {
+    return !t.qui || !qui || t.qui === qui;   // les tâches de la personne + les libres
+  });
+
+  if (moment === 'matin') {
+    var reste = l.filter(function (t) { return !t.faite; });
+    if (!reste.length) return { titre: 'Ménage — rien de prévu', corps: 'Journée tranquille aujourd\'hui.' };
+    var min = reste.reduce(function (s, t) { return s + t.duree; }, 0);
+    return {
+      titre: reste.length + (reste.length > 1 ? ' tâches' : ' tâche') + ' aujourd\'hui · ' + min + ' min',
+      corps: reste.map(function (t) { return '• ' + t.nom + (t.retard > 0 ? ' (+' + t.retard + 'j)' : ''); }).join('\n')
+    };
+  }
+
+  if (!l.length) return { titre: 'Ménage', corps: 'Rien n\'était prévu aujourd\'hui.' };
+  var faites = l.filter(function (t) { return t.faite; }).length;
+  var restant = l.filter(function (t) { return !t.faite; });
+  return {
+    titre: faites + (faites > 1 ? ' faites' : ' faite') + ', ' + restant.length + ' à faire',
+    corps: restant.length
+      ? 'Reste : ' + restant.map(function (t) { return t.nom; }).join(', ')
+      : 'Tout est fait pour aujourd\'hui.'
+  };
 }
