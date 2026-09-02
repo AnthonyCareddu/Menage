@@ -26,27 +26,51 @@
   --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
 }}
 
-:root[data-theme=sauge]{
-  --page:#eef0ea; --card:#fbfcf8; --ink:#33372f; --muted:#868b7d; --line:#dde0d5;
-  --accent:#5f7a5a; --accent-bg:#e2e8dd; --late:#a9764a; --late-bg:#efe6d9;
-  --p1:#5f7a5a; --p2:#a9764a; --hors:#c4c8ba; --err:#a8473a;
+:root[data-theme=foret]{
+  --page:#eef0ec; --card:#fbfcfa; --ink:#1f2a22; --muted:#79867c; --line:#dde2dc;
+  --accent:#1f5c3d; --accent-bg:#dae8e0; --late:#b0703c; --late-bg:#f0e7db;
+  --p1:#1f5c3d; --p2:#a56a4a; --hors:#c4ccc3; --err:#a83b32;
 }
-@media(prefers-color-scheme:dark){ :root[data-theme=sauge]{
-  --page:#191b17; --card:#23261f; --ink:#e5e8dd; --muted:#949a89; --line:#33362d;
-  --accent:#90ac89; --accent-bg:#2a3227; --late:#cfa06f; --late-bg:#33291d;
-  --p1:#90ac89; --p2:#cfa06f; --hors:#4a4d42; --err:#dd8474;
+@media(prefers-color-scheme:dark){ :root[data-theme=foret]{
+  --page:#10140f; --card:#191f17; --ink:#dce8de; --muted:#869484; --line:#262e26;
+  --accent:#4e9e6f; --accent-bg:#1e2c21; --late:#cf9d6f; --late-bg:#2e2a1a;
+  --p1:#4e9e6f; --p2:#cf9d6f; --hors:#3e463d; --err:#e0776e;
   --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
 }}
 
-:root[data-theme=ardoise]{
-  --page:#eef1f4; --card:#ffffff; --ink:#22282f; --muted:#7c8794; --line:#dde3e9;
-  --accent:#3a6b8a; --accent-bg:#dbe8f0; --late:#b06a45; --late-bg:#f2e5dc;
-  --p1:#3a6b8a; --p2:#b06a45; --hors:#c2cad2; --err:#b0473a;
+:root[data-theme=argile]{
+  --page:#f5efe8; --card:#fffcf6; --ink:#33261f; --muted:#948578; --line:#e8ddd0;
+  --accent:#b0553a; --accent-bg:#f0dfd5; --late:#8c6f38; --late-bg:#efe8d5;
+  --p1:#b0553a; --p2:#6b7f6a; --hors:#cdbfae; --err:#a33a2e;
 }
-@media(prefers-color-scheme:dark){ :root[data-theme=ardoise]{
-  --page:#14181c; --card:#1d232a; --ink:#e5eaf0; --muted:#8b97a4; --line:#2b333c;
-  --accent:#6fa8c9; --accent-bg:#22303a; --late:#d3946c; --late-bg:#33281f;
-  --p1:#6fa8c9; --p2:#d3946c; --hors:#454e57; --err:#e0776e;
+@media(prefers-color-scheme:dark){ :root[data-theme=argile]{
+  --page:#1c1613; --card:#271e19; --ink:#ece0d4; --muted:#a2907f; --line:#392c24;
+  --accent:#d3775a; --accent-bg:#38271f; --late:#cbaa6a; --late-bg:#332a1a;
+  --p1:#d3775a; --p2:#8faa8a; --hors:#4f4238; --err:#e0776e;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
+}}
+
+:root[data-theme=marine]{
+  --page:#eef1f5; --card:#ffffff; --ink:#1c2634; --muted:#74808f; --line:#dbe1e9;
+  --accent:#2e4a7a; --accent-bg:#dde5f0; --late:#b5793f; --late-bg:#f3e8d9;
+  --p1:#2e4a7a; --p2:#b5793f; --hors:#c0c8d2; --err:#b03e34;
+}
+@media(prefers-color-scheme:dark){ :root[data-theme=marine]{
+  --page:#12151b; --card:#1b202a; --ink:#e3e8f0; --muted:#8894a4; --line:#2a313d;
+  --accent:#7f9fd4; --accent-bg:#212a3c; --late:#d69f6a; --late-bg:#33291d;
+  --p1:#7f9fd4; --p2:#d69f6a; --hors:#434c58; --err:#e0776e;
+  --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
+}}
+
+:root[data-theme=prune]{
+  --page:#f2eef1; --card:#fdfbfc; --ink:#2e2530; --muted:#8a7f8a; --line:#e5dde3;
+  --accent:#7a4a72; --accent-bg:#ebe0ea; --late:#a56b45; --late-bg:#f0e6db;
+  --p1:#7a4a72; --p2:#6b8f7d; --hors:#cbc0c9; --err:#a83b3b;
+}
+@media(prefers-color-scheme:dark){ :root[data-theme=prune]{
+  --page:#191519; --card:#241e23; --ink:#ebe2ea; --muted:#9c8f9c; --line:#352d34;
+  --accent:#b98cae; --accent-bg:#322632; --late:#cf9d76; --late-bg:#33291d;
+  --p1:#b98cae; --p2:#86b09b; --hors:#4c434b; --err:#e0776e;
   --ombre:0 1px 2px rgba(0,0,0,.25), 0 14px 32px -16px rgba(0,0,0,.55);
 }}
 
@@ -75,9 +99,10 @@ header{padding:calc(12px + env(safe-area-inset-top)) 20px 16px;background:var(--
 .compte{display:flex;align-items:baseline;gap:9px;margin-top:7px}
 .gros{font-size:39px;font-weight:700;letter-spacing:-.03em;line-height:1.05}
 .gros-sub{font-size:14px;color:var(--muted)}
-.prog{height:6px;border-radius:3px;background:var(--line);margin-top:15px;overflow:hidden}
+.prog{height:6px;border-radius:3px;background:var(--line);margin-top:15px}
 .prog span{display:block;height:100%;background:var(--accent);border-radius:3px;
   transition:width .5s cubic-bezier(.4,0,.2,1)}
+.prog.plein span{box-shadow:0 0 10px -1px var(--accent)}
 
 main{padding:0 16px 112px}
 .groupe{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.05em;
@@ -118,11 +143,17 @@ main{padding:0 16px 112px}
   border-radius:var(--r);box-shadow:var(--ombre);padding:14px 12px;margin-top:16px}
 .cal .dow{font-size:11px;color:var(--muted);text-align:center;padding:2px 0 6px;font-weight:600}
 .cell{aspect-ratio:1;background:var(--page);border-radius:10px;display:flex;
-  flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px}
-.cell.hors{background:transparent;color:var(--hors)}
-.cell.today{background:var(--accent-bg);color:var(--accent);font-weight:700}
-.pt{width:5px;height:5px;border-radius:50%;background:var(--accent)}
-.pts{display:flex;gap:2px;height:5px}
+  flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;
+  cursor:pointer;transition:transform .1s}
+.cell:active{transform:scale(.92)}
+.cell.hors{background:transparent;color:var(--hors);pointer-events:none}
+.cell.today{box-shadow:inset 0 0 0 2px var(--accent);font-weight:700}
+.cell.fini{background:var(--accent);color:#fff;font-weight:600}
+.cell.partiel{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
+.cell.rate{color:var(--hors)}
+.cell.sel{outline:2px solid var(--ink);outline-offset:1px}
+.cell .charge{display:block;height:3px;border-radius:2px;background:var(--accent);
+  width:calc(var(--n,1) * 16%);opacity:.75}
 
 .pilule{border:1px solid var(--line);background:none;color:var(--muted);
   border-radius:14px;padding:6px 14px;font-size:13px;font-weight:600}
@@ -161,8 +192,10 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .theme-apercu{width:32px;height:32px;border-radius:9px;flex:none;border:1px solid rgba(0,0,0,.08);
   background:linear-gradient(135deg,var(--sw-p) 0 52%,var(--sw-a) 52% 100%)}
 .theme-apercu[data-t=foyer]{--sw-p:#f4f1ea;--sw-a:#2d6a4f}
-.theme-apercu[data-t=sauge]{--sw-p:#eef0ea;--sw-a:#5f7a5a}
-.theme-apercu[data-t=ardoise]{--sw-p:#eef1f4;--sw-a:#3a6b8a}
+.theme-apercu[data-t=foret]{--sw-p:#eef0ec;--sw-a:#1f5c3d}
+.theme-apercu[data-t=argile]{--sw-p:#f5efe8;--sw-a:#b0553a}
+.theme-apercu[data-t=marine]{--sw-p:#eef1f5;--sw-a:#2e4a7a}
+.theme-apercu[data-t=prune]{--sw-p:#f2eef1;--sw-a:#7a4a72}
 .theme-apercu[data-t=nuit]{--sw-p:#101216;--sw-a:#7aa2f7}
 .sw{position:relative;width:44px;height:26px;border-radius:13px;background:var(--line);
   flex:none;transition:background .2s}
@@ -173,6 +206,14 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .bandeau{background:var(--late-bg);color:var(--late);font-size:13px;font-weight:500;
   padding:10px 20px;text-align:center}
 #maj{background:var(--accent);color:#fff}
+#toast{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(74px + env(safe-area-inset-bottom));z-index:20;
+  background:var(--ink);color:var(--page);font-size:13.5px;font-weight:500;
+  padding:11px 16px;border-radius:13px;display:flex;align-items:center;gap:16px;
+  max-width:calc(100% - 32px);box-shadow:var(--ombre);animation:toast .2s ease}
+@keyframes toast{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+#toast button{background:none;border:0;color:var(--page);font-weight:700;font-size:13.5px;
+  flex:none;text-decoration:underline;text-underline-offset:3px}
 .err{color:var(--err);font-size:13px;padding:4px 0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -181,6 +222,7 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 
 <div id="bandeau" class="bandeau" hidden></div>
 <div id="maj" class="bandeau" hidden style="cursor:pointer"></div>
+<div id="toast" hidden></div>
 <header>
   <div class="tete-h">
     <div class="jour" id="dateLabel"></div>
@@ -221,10 +263,12 @@ const S = {
   tacheEdit: null,
   bilanPeriode: 7,
   planningVue: 'semaine',
+  moisJour: null,
   theme: localStorage.getItem('theme') || 'foyer'
 };
 
-const THEMES = [['foyer','Foyer'], ['sauge','Sauge'], ['ardoise','Ardoise'], ['nuit','Nuit']];
+const THEMES = [['foyer','Foyer'], ['foret','Forêt'], ['argile','Argile'],
+                ['marine','Marine'], ['prune','Prune'], ['nuit','Nuit']];
 
 function majBarreEtat(){
   const pg = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
@@ -241,6 +285,7 @@ matchMedia('(prefers-color-scheme:dark)').addEventListener('change', majBarreEta
 
 const ICO = {
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.4"/><path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8M18.4 18.4l-1.8-1.8M7.4 7.4 5.6 5.6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" style="stroke:var(--accent)"><path d="M4.5 12.5l5 5 10-11"/></svg>',
   gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.3"/><path d="M19.5 12a7.5 7.5 0 0 0-.15-1.5l2-1.55-2-3.46-2.36 1a7.5 7.5 0 0 0-2.6-1.5L14 1h-4l-.39 2.49a7.5 7.5 0 0 0-2.6 1.5l-2.36-1-2 3.46 2 1.55A7.5 7.5 0 0 0 4.5 12c0 .51.05 1.01.15 1.5l-2 1.55 2 3.46 2.36-1a7.5 7.5 0 0 0 2.6 1.5L10 23h4l.39-2.49a7.5 7.5 0 0 0 2.6-1.5l2.36 1 2-3.46-2-1.55c.1-.49.15-.99.15-1.5z"/></svg>',
   retour: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>'
 };
@@ -330,6 +375,25 @@ function bandeau(msg){
   b.hidden = !msg; b.textContent = msg || '';
 }
 
+let _toastT;
+function toast(msg, action){
+  const el = document.getElementById('toast');
+  clearTimeout(_toastT);
+  el.innerHTML = '';
+  const s = document.createElement('span');
+  s.textContent = msg;
+  s.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+  el.appendChild(s);
+  if(action){
+    const b = document.createElement('button');
+    b.textContent = action.label;
+    b.onclick = () => { clearTimeout(_toastT); el.hidden = true; action.fn(); };
+    el.appendChild(b);
+  }
+  el.hidden = false;
+  _toastT = setTimeout(() => { el.hidden = true; }, 4500);
+}
+
 /* ---------------------------------------------- moteur de récurrence */
 
 function derniereFois(id){
@@ -408,7 +472,7 @@ function pourLeJour(dateStr){
 
 /* ------------------------------------------------------------- rendu */
 
-function aller(vue){ S.vue = vue; S.ancre = new Date(); S.tacheEdit = null; rendre(); }
+function aller(vue){ S.vue = vue; S.ancre = new Date(); S.tacheEdit = null; S.moisJour = null; rendre(); }
 
 function rendre(){
   const v = document.getElementById('vue');
@@ -482,16 +546,27 @@ function liste(taches, dateStr){
   return box;
 }
 
-async function cocher(t, dateStr, el){
+function cocher(t, dateStr, el){
   const on = !el.classList.contains('ok');
   el.classList.toggle('ok', on);
   if(on && navigator.vibrate) navigator.vibrate(15);
   const qui = t.qui || S.moi || '';
-  if(on) S.data.journal.push({id:t.id, date:dateStr, qui, retard:0});
-  else S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
+  if(on){
+    S.data.journal.push({id:t.id, date:dateStr, qui, retard:0});
+    toast('« ' + t.nom + ' » fait', { label:'Annuler', fn:() => decocher(t, dateStr) });
+  }else{
+    S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
+  }
   localStorage.setItem('cache', JSON.stringify(S.data));
   if(S.vue==='jour') majCompteur();
   envoyer({action:'toggle', id:t.id, date:dateStr, qui});
+}
+
+function decocher(t, dateStr){
+  S.data.journal = S.data.journal.filter(r => !(r.id===t.id && r.date===dateStr));
+  localStorage.setItem('cache', JSON.stringify(S.data));
+  envoyer({action:'toggle', id:t.id, date:dateStr, qui: t.qui || S.moi || ''});
+  rendre();
 }
 
 function bilanDuJour(){
@@ -514,6 +589,7 @@ function majCompteur(){
     b.reste.length ? b.reste.length + (b.reste.length>1?' tâches restantes':' tâche restante')
       : (b.total ? b.nbFait + (b.nbFait>1?' tâches faites':' tâche faite') : ''));
   if(b.total) progres(b.nbFait, b.total);
+  document.getElementById('prog').classList.toggle('plein', b.total > 0 && b.reste.length === 0);
 }
 
 function vJour(v){
@@ -523,7 +599,7 @@ function vJour(v){
   const l = pourLeJour(d);
   v.innerHTML = '';
   if(!l.length){
-    v.innerHTML = '<div class="vide">' + ICO.sun + '<div>' +
+    v.innerHTML = '<div class="vide">' + (b.nbFait ? ICO.check : ICO.sun) + '<div>' +
       (b.nbFait ? 'Tout est fait pour aujourd\'hui.' : 'Journée tranquille — rien de prévu.') +
       '</div></div>';
     return;
@@ -581,17 +657,48 @@ function vMois(v){
   let html = '<div class="cal">' + ['lun','mar','mer','jeu','ven','sam','dim'].map(j=>'<div class="dow">'+j+'</div>').join('');
   for(let i=0;i<42;i++){
     const d = plus(debut,i), ds = ymd(d), hors = d.getMonth() !== mo;
-    const n = hors ? 0 : pourLeJour(ds).length;
-    const pts = '<div class="pts">' + Array.from({length:Math.min(n,4)}, ()=>'<span class="pt"></span>').join('') + '</div>';
-    html += '<div class="cell' + (hors?' hors':'') + (ds===today?' today':'') + '">' + d.getDate() + (n?pts:'') + '</div>';
+    let cls = 'cell', extra = '';
+    if(hors) cls += ' hors';
+    if(ds === today) cls += ' today';
+    if(ds === S.moisJour) cls += ' sel';
+    if(!hors){
+      const l = pourLeJour(ds);
+      if(ds < today){
+        // statut basé sur les tâches datées (jours/mois/date) ; l'intervalle est un rythme, pas un jour
+        const jour = l.filter(t => t.mode !== 'intervalle');
+        if(jour.length){
+          const f = jour.filter(t=>t.faite).length;
+          cls += f === jour.length ? ' fini' : (f ? ' partiel' : ' rate');
+        }
+      }else if(l.length){
+        extra = '<span class="charge" style="--n:' + Math.min(l.length,5) + '"></span>';
+      }
+    }
+    html += '<div class="' + cls + '" data-d="' + ds + '">' + d.getDate() + extra + '</div>';
   }
   html += '</div><div style="display:flex;gap:10px;margin-top:14px">' +
     '<button class="btn sec" id="prev" style="margin:0">‹ ' + cap(MOIS_L[(mo+11)%12]) + '</button>' +
-    '<button class="btn sec" id="next" style="margin:0">' + cap(MOIS_L[(mo+1)%12]) + ' ›</button></div>' +
-    '<p class="aide" style="margin-top:12px">Les tâches à intervalle sont projetées à titre indicatif : leur vraie date dépend du moment où elles sont cochées.</p>';
+    '<button class="btn sec" id="next" style="margin:0">' + cap(MOIS_L[(mo+1)%12]) + ' ›</button></div>';
   v.innerHTML = html;
-  v.querySelector('#prev').onclick = () => { S.ancre = new Date(an, mo-1, 1); rendre(); };
-  v.querySelector('#next').onclick = () => { S.ancre = new Date(an, mo+1, 1); rendre(); };
+
+  v.querySelectorAll('.cell[data-d]').forEach(c => c.onclick = () => {
+    S.moisJour = (S.moisJour === c.dataset.d) ? null : c.dataset.d;
+    rendre();
+  });
+  v.querySelector('#prev').onclick = () => { S.ancre = new Date(an, mo-1, 1); S.moisJour = null; rendre(); };
+  v.querySelector('#next').onclick = () => { S.ancre = new Date(an, mo+1, 1); S.moisJour = null; rendre(); };
+
+  if(S.moisJour){
+    const jd = parseYmd(S.moisJour);
+    const l = pourLeJour(S.moisJour);
+    v.appendChild(titre(cap(JOURS_L[jd.getDay()]) + ' ' + jd.getDate() + ' ' + MOIS_L[jd.getMonth()]));
+    v.appendChild(l.length ? liste(l, S.moisJour)
+      : Object.assign(document.createElement('p'), { className:'aide', textContent:'Rien ce jour-là.' }));
+  }else{
+    v.insertAdjacentHTML('beforeend',
+      '<p class="aide" style="margin-top:12px">Touche un jour pour voir ses tâches. ' +
+      'Vert plein = journée bouclée. Les tâches à intervalle sont projetées à titre indicatif.</p>');
+  }
   enTete('Planning', cap(MOIS_L[mo]) + ' ' + an, '');
 }
 
@@ -752,7 +859,7 @@ function vReglages(v){
     vReglages(document.getElementById('vue'));
   });
   v.querySelector('#gererTaches').onclick = () => { S.tacheEdit = null; S.vue = 'taches'; rendre(); };
-  v.querySelectorAll('.sw').forEach(el => el.onclick = () => {
+  v.querySelectorAll('.sw[data-k]').forEach(el => el.onclick = () => {
     const on = !el.classList.contains('on');
     el.classList.toggle('on', on);
     if(S.data) S.data.config[el.dataset.k] = on ? 'oui' : 'non';
@@ -810,9 +917,19 @@ async function majEtatNotifs(v){
   const sub = reg ? await reg.pushManager.getSubscription() : null;
   dire(sub ? 'Activées sur cet appareil.' : 'Pas encore activées sur cet appareil.');
   if(sub){
+    const pm = localStorage.getItem('notif_matin') !== 'non';
+    const ps = localStorage.getItem('notif_soir') !== 'non';
     actions.innerHTML =
-      '<button class="btn sec" id="n_test" style="margin-top:0">Envoyer un test</button>' +
-      '<button class="btn danger" id="n_off">Désactiver ici</button>';
+      `<div class="champ"><span>Rappel du matin</span><span class="sw${pm?' on':''}" data-p="matin"><i></i></span></div>` +
+      `<div class="champ"><span>Rappel du soir</span><span class="sw${ps?' on':''}" data-p="soir"><i></i></span></div>` +
+      '<button class="btn sec" id="n_test">Envoyer un test</button>' +
+      '<button class="btn danger" id="n_off">Désactiver sur cet appareil</button>';
+    actions.querySelectorAll('.sw[data-p]').forEach(el => el.onclick = () => {
+      const on = !el.classList.contains('on');
+      el.classList.toggle('on', on);
+      localStorage.setItem('notif_' + el.dataset.p, on ? 'oui' : 'non');
+      pousserPrefsNotifs(sub);
+    });
     actions.querySelector('#n_test').onclick = async () => {
       dire('Envoi du test…');
       try{ await api({action:'testPush'}); dire('Test envoyé — la notification arrive dans quelques secondes.'); }
@@ -832,6 +949,14 @@ async function majEtatNotifs(v){
   }
 }
 
+function pousserPrefsNotifs(sub){
+  const j = sub.toJSON();
+  envoyer({ action:'subscribePush', endpoint:j.endpoint,
+    p256dh:j.keys.p256dh, auth:j.keys.auth, qui:S.moi || '',
+    matin: localStorage.getItem('notif_matin') === 'non' ? 'non' : 'oui',
+    soir:  localStorage.getItem('notif_soir')  === 'non' ? 'non' : 'oui' });
+}
+
 async function activerNotifs(v){
   const etat = v.querySelector('#n_etat');
   const dire = m => { if(etat) etat.textContent = m; };
@@ -844,9 +969,13 @@ async function activerNotifs(v){
     let sub = await reg.pushManager.getSubscription();
     if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: b64urlToU8(cle) });
     const j = sub.toJSON();
+    if(localStorage.getItem('notif_matin') === null) localStorage.setItem('notif_matin', 'oui');
+    if(localStorage.getItem('notif_soir') === null) localStorage.setItem('notif_soir', 'oui');
     await majConf();
     const ok = await envoyer({ action:'subscribePush', endpoint:j.endpoint,
-      p256dh:j.keys.p256dh, auth:j.keys.auth, qui:S.moi || '' });
+      p256dh:j.keys.p256dh, auth:j.keys.auth, qui:S.moi || '',
+      matin: localStorage.getItem('notif_matin') === 'non' ? 'non' : 'oui',
+      soir:  localStorage.getItem('notif_soir')  === 'non' ? 'non' : 'oui' });
     if(!ok){ dire('Enregistré localement — se synchronisera au retour du réseau.'); }
     localStorage.setItem('notifs','1');
     vReglages(document.getElementById('vue'));

@@ -565,8 +565,18 @@ function pushSheet_() {
   var sh = ss.getSheetByName('Push');
   if (!sh) {
     sh = ss.insertSheet('Push');
-    sh.getRange(1, 1, 1, 5).setValues([['endpoint', 'p256dh', 'auth', 'qui', 'ajoute']]).setFontWeight('bold');
+    sh.getRange(1, 1, 1, 7)
+      .setValues([['endpoint', 'p256dh', 'auth', 'qui', 'matin', 'soir', 'ajoute']])
+      .setFontWeight('bold');
     sh.setFrozenRows(1);
+    return sh;
+  }
+  // migration douce : ajouter matin/soir aux anciennes feuilles (5 colonnes)
+  var head = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0];
+  if (head.indexOf('matin') < 0) {
+    var col = (head.indexOf('ajoute') >= 0 ? head.indexOf('ajoute') : head.length) + 1;
+    sh.insertColumnsBefore(col, 2);
+    sh.getRange(1, col, 1, 2).setValues([['matin', 'soir']]).setFontWeight('bold');
   }
   return sh;
 }
@@ -575,13 +585,17 @@ function pushSubs_() {
   return lire_('Push').filter(function (r) { return r.endpoint; });
 }
 
+function _veut_(pref) { return String(pref).toLowerCase() !== 'non'; } // absent / 'oui' = oui
+
 function subscribePush_(p) {
   var sh = pushSheet_();
   var v = sh.getDataRange().getValues();
-  var ligne = [p.endpoint, p.p256dh || '', p.auth || '', p.qui || '', new Date()];
+  var matin = (p.matin === 'non' || p.matin === false) ? 'non' : 'oui';
+  var soir = (p.soir === 'non' || p.soir === false) ? 'non' : 'oui';
+  var ligne = [p.endpoint, p.p256dh || '', p.auth || '', p.qui || '', matin, soir, new Date()];
   for (var i = 1; i < v.length; i++) {
     if (String(v[i][0]) === p.endpoint) {
-      sh.getRange(i + 1, 1, 1, 5).setValues([ligne]);
+      sh.getRange(i + 1, 1, 1, 7).setValues([ligne]);
       return { maj: true };
     }
   }
@@ -601,7 +615,9 @@ function unsubscribePush_(endpoint) {
 /* ------------------------------------------------ envoi des push */
 
 function envoyerPush_(moment) {
-  var subs = pushSubs_();
+  var subs = pushSubs_().filter(function (s) {
+    return _veut_(moment === 'soir' ? s.soir : s.matin);
+  });
   if (!subs.length) return { envoyes: 0, abonnes: 0 };
   var envoyes = 0, morts = [], jwts = {};
   subs.forEach(function (s) {
