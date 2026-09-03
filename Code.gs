@@ -70,12 +70,14 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('sauvegarde').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
 }
 
-/* copie datée du Sheet dans un dossier "Ménage — sauvegardes", garde les 4 dernières */
+/* copie datée du Sheet dans un dossier "sauvegardes" à côté du Sheet, garde les 4 dernières */
 function sauvegarde() {
   if (String(config().sauvegarde_hebdo || 'oui').toLowerCase() === 'non') return;
   var src = DriveApp.getFileById(PROP.getProperty('SS_ID'));
-  var dossiers = DriveApp.getFoldersByName('Ménage — sauvegardes');
-  var dossier = dossiers.hasNext() ? dossiers.next() : DriveApp.createFolder('Ménage — sauvegardes');
+  var parents = src.getParents();
+  var parent = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  var dossiers = parent.getFoldersByName('Ménage — sauvegardes');
+  var dossier = dossiers.hasNext() ? dossiers.next() : parent.createFolder('Ménage — sauvegardes');
   var nom = 'Ménage ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   src.makeCopy(nom, dossier);
   var copies = [];
@@ -83,6 +85,26 @@ function sauvegarde() {
   while (it.hasNext()) copies.push(it.next());
   copies.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
   copies.slice(4).forEach(function (f) { f.setTrashed(true); });
+}
+
+/**
+ * À lancer UNE FOIS pour ranger le Sheet, le projet Apps Script et le dossier
+ * de sauvegardes dans Famille/Antho/tableau/Ménage (les dossiers manquants sont
+ * créés). Modifie le tableau CHEMIN ci-dessous pour un autre emplacement, ou
+ * retire 'Ménage' pour ranger directement dans "tableau".
+ */
+function rangerFichiers() {
+  var CHEMIN = ['Famille', 'Antho', 'tableau', 'Ménage'];
+  var parent = DriveApp.getRootFolder();
+  CHEMIN.forEach(function (nom) {
+    var it = parent.getFoldersByName(nom);
+    parent = it.hasNext() ? it.next() : parent.createFolder(nom);
+  });
+  DriveApp.getFileById(PROP.getProperty('SS_ID')).moveTo(parent);
+  DriveApp.getFileById(ScriptApp.getScriptId()).moveTo(parent);
+  var bk = DriveApp.getFoldersByName('Ménage — sauvegardes');
+  if (bk.hasNext()) bk.next().moveTo(parent);
+  Logger.log('Rangé dans ' + parent.getName() + ' — ' + parent.getUrl());
 }
 
 /**

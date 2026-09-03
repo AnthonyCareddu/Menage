@@ -40,6 +40,11 @@ Quand une nouvelle version de `Code.gs` est disponible :
 Si les rappels arrivent à la mauvaise heure : Apps Script → Projet → Paramètres →
 fuseau `Europe/Paris` (les logs de `migrer()` affichent le fuseau actuel).
 
+**Ranger les fichiers** (facultatif) : `rangerFichiers()` déplace le Sheet, le
+projet Apps Script et le dossier de sauvegardes dans le chemin indiqué en tête de
+la fonction (par défaut `Famille/Antho/tableau/Ménage`). Rien ne casse — tout est
+référencé par ID. À lancer une seule fois.
+
 ## 2. Le frontend
 
 Poussez tout le dossier (`index.html`, `manifest.json`, `sw.js`, `.nojekyll`,
