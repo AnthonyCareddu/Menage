@@ -151,12 +151,8 @@ main{padding:0 16px 112px}
 .cell:active{transform:scale(.92)}
 .cell.hors{background:transparent;color:var(--hors);pointer-events:none}
 .cell.today{box-shadow:inset 0 0 0 2px var(--accent);font-weight:700}
-.cell.fini{background:var(--accent);color:#fff;font-weight:600}
-.cell.partiel{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--accent) 55%,transparent)}
-.cell.rate{color:var(--hors)}
 .cell.sel{outline:2px solid var(--ink);outline-offset:1px}
-.cell .charge{display:block;height:3px;border-radius:2px;background:var(--accent);
-  width:calc(var(--n,1) * 16%);opacity:.75}
+.cell .n{display:block;font-size:10px;font-weight:700;opacity:.7;line-height:1;margin-top:2px}
 
 .pilule{border:1px solid var(--line);background:none;color:var(--muted);
   border-radius:14px;padding:6px 14px;font-size:13px;font-weight:600}
@@ -850,24 +846,28 @@ function vMois(v){
   let html = '<div class="cal">' + ['lun','mar','mer','jeu','ven','sam','dim'].map(j=>'<div class="dow">'+j+'</div>').join('');
   for(let i=0;i<42;i++){
     const d = plus(debut,i), ds = ymd(d), hors = d.getMonth() !== mo;
-    let cls = 'cell', extra = '';
+    let cls = 'cell', style = '', extra = '';
     if(hors) cls += ' hors';
     if(ds === today) cls += ' today';
     if(ds === S.moisJour) cls += ' sel';
     if(!hors){
       const l = pourLeJour(ds);
-      if(ds < today){
-        // statut basé sur les tâches datées (jours/mois/date) ; l'intervalle est un rythme, pas un jour
+      if(ds <= today){
+        // teinte selon l'accomplissement des tâches datées (jours/mois/date) ;
+        // l'intervalle est un rythme, pas une échéance du jour, exclu du calcul
         const jour = l.filter(t => t.mode !== 'intervalle');
         if(jour.length){
           const f = jour.filter(t=>t.faite).length;
-          cls += f === jour.length ? ' fini' : (f ? ' partiel' : ' rate');
+          const pct = Math.max(12, Math.round(f / jour.length * 100));
+          style = 'background:color-mix(in srgb,var(--accent) ' + pct + '%,var(--card))' +
+            (pct >= 60 ? ';color:#fff' : '');
         }
       }else if(l.length){
-        extra = '<span class="charge" style="--n:' + Math.min(l.length,5) + '"></span>';
+        extra = '<span class="n">' + l.length + '</span>';
       }
     }
-    html += '<div class="' + cls + '" data-d="' + ds + '">' + d.getDate() + extra + '</div>';
+    html += '<div class="' + cls + '" data-d="' + ds + '"' + (style ? ' style="' + style + '"' : '') + '>' +
+      d.getDate() + extra + '</div>';
   }
   html += '</div><div style="display:flex;gap:10px;margin-top:14px">' +
     '<button class="btn sec" id="prev" style="margin:0">‹ ' + cap(MOIS_L[(mo+11)%12]) + '</button>' +
@@ -889,8 +889,9 @@ function vMois(v){
       : Object.assign(document.createElement('p'), { className:'aide', textContent:'Rien ce jour-là.' }));
   }else{
     v.insertAdjacentHTML('beforeend',
-      '<p class="aide" style="margin-top:12px">Touche un jour pour voir ses tâches. ' +
-      'Vert plein = journée bouclée. Les tâches à intervalle sont projetées à titre indicatif.</p>');
+      '<p class="aide" style="margin-top:12px">Touche un jour pour voir ses tâches. Teinte plus foncée = ' +
+      'jour plus accompli ; le chiffre à venir est le nombre de tâches prévues. Les tâches à intervalle ' +
+      'sont projetées à titre indicatif.</p>');
   }
   enTete('Planning', cap(MOIS_L[mo]) + ' ' + an, '');
 }
