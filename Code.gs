@@ -11,6 +11,12 @@ var JOURS = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
 /* ------------------------------------------------------------------ setup */
 
 function setup() {
+  if (PROP.getProperty('SS_ID')) {
+    throw new Error('setup() a déjà été lancé — une base existe (SS_ID est déjà défini). ' +
+      'Pour appliquer un nouveau Code.gs, lancez migrer(), pas setup() : setup() créerait un ' +
+      'second Sheet VIDE et abandonnerait vos données. Si vous voulez vraiment repartir de zéro, ' +
+      'effacez la propriété SS_ID dans Paramètres du projet > Propriétés du script, puis relancez setup().');
+  }
   var ss = SpreadsheetApp.create('Ménage — base de données');
   PROP.setProperty('SS_ID', ss.getId());
 
