@@ -234,6 +234,8 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .sheet-panel .btn{margin-top:10px}
 .err{color:var(--err);font-size:13px;padding:4px 0}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* grands écrans (tablette) : on utilise plus l'espace, colonne plus large */
+@media(min-width:820px){ #bandeau,#maj,header,main,nav,.sheet-panel{max-width:720px} }
 </style>
 </head>
 <body>
@@ -1096,7 +1098,10 @@ function vReglages(v){
     <h2>E-mails automatiques</h2>
     ${sw('mail_quotidien','Récap du matin',c)}
     ${sw('mail_soir','Récap du soir',c)}
-    ${sw('mail_hebdo','Récap hebdomadaire',c)}
+    ${sw('mail_hebdo','Bilan + semaine à venir',c)}
+    <div class="champ"><span>Envoyé le</span>
+      <select id="jour_hebdo">${ORDRE_J.map(j => `<option value="${j}">${cap(JOURS_L[JOURS.indexOf(j)])}</option>`).join('')}</select></div>
+    <div class="champ"><span>à</span><input type="number" id="h_hebdo" min="0" max="23" style="max-width:70px"></div>
     ${sw('mail_mensuel','Récap mensuel',c)}
     ${sw('vacances','Mode vacances',c)}
     <p class="aide">Le mode vacances suspend tous les envois (mails et notifications) sans rien effacer.</p>
@@ -1165,6 +1170,16 @@ function vReglages(v){
   };
   hm.onchange = () => majHeure('heure_matin', hm);
   hs.onchange = () => majHeure('heure_soir', hs);
+
+  const jh = v.querySelector('#jour_hebdo'), hh = v.querySelector('#h_hebdo');
+  jh.value = c.jour_hebdo || 'lun';
+  hh.value = c.heure_hebdo || c.heure_matin || '7';
+  jh.onchange = () => {
+    if(S.data) S.data.config.jour_hebdo = jh.value;
+    localStorage.setItem('cache', JSON.stringify(S.data));
+    envoyer({action:'setConfig', cle:'jour_hebdo', valeur:jh.value});
+  };
+  hh.onchange = () => majHeure('heure_hebdo', hh);
 
   majEtatNotifs(v);
 }

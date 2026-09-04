@@ -41,7 +41,7 @@ function setup() {
 
   var c = ss.insertSheet('Config');
   c.getRange(1, 1, 1, 2).setValues([['cle', 'valeur']]).setFontWeight('bold');
-  c.getRange(2, 1, 12, 2).setValues([
+  c.getRange(2, 1, 14, 2).setValues([
     ['personnes', 'Antho,Alexandra'],
     ['destinataires', Session.getActiveUser().getEmail()],
     ['mail_quotidien', 'oui'],
@@ -53,7 +53,9 @@ function setup() {
     ['heure_soir', '19'],
     ['heure_envoi', '7'],
     ['verrou_jours', '2'],
-    ['sauvegarde_hebdo', 'oui']
+    ['sauvegarde_hebdo', 'oui'],
+    ['jour_hebdo', 'lun'],
+    ['heure_hebdo', '7']
   ]);
 
   pushSheet_();
@@ -66,14 +68,22 @@ function setup() {
   return ss.getUrl();
 }
 
+var JOUR_ENUM_ = {
+  dim: ScriptApp.WeekDay.SUNDAY, lun: ScriptApp.WeekDay.MONDAY, mar: ScriptApp.WeekDay.TUESDAY,
+  mer: ScriptApp.WeekDay.WEDNESDAY, jeu: ScriptApp.WeekDay.THURSDAY, ven: ScriptApp.WeekDay.FRIDAY,
+  sam: ScriptApp.WeekDay.SATURDAY
+};
+
 function installerDeclencheurs() {
   ScriptApp.getProjectTriggers().forEach(function (tr) { ScriptApp.deleteTrigger(tr); });
   var c = config();
   var hm = parseInt(c.heure_matin || c.heure_envoi || '7', 10);
   var hs = parseInt(c.heure_soir || '19', 10);
+  var hh = parseInt(c.heure_hebdo || hm, 10);
+  var jh = JOUR_ENUM_[c.jour_hebdo] || ScriptApp.WeekDay.MONDAY;
   ScriptApp.newTrigger('digestMatin').timeBased().everyDays(1).atHour(hm).create();
   ScriptApp.newTrigger('digestSoir').timeBased().everyDays(1).atHour(hs).create();
-  ScriptApp.newTrigger('mailHebdo').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(hm).create();
+  ScriptApp.newTrigger('mailHebdo').timeBased().onWeekDay(jh).atHour(hh).create();
   ScriptApp.newTrigger('mailMensuel').timeBased().onMonthDay(1).atHour(hm).create();
   ScriptApp.newTrigger('sauvegarde').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
 }
@@ -125,7 +135,8 @@ function migrer() {
   ss.getSheetByName('Taches').getRange('G:G').setNumberFormat('@');
   // nouvelles clés de config (ne touche pas à celles qui existent déjà)
   [['mail_soir', 'non'], ['heure_matin', config().heure_envoi || '7'], ['heure_soir', '19'],
-   ['verrou_jours', '2'], ['sauvegarde_hebdo', 'oui']]
+   ['verrou_jours', '2'], ['sauvegarde_hebdo', 'oui'],
+   ['jour_hebdo', 'lun'], ['heure_hebdo', config().heure_matin || config().heure_envoi || '7']]
     .forEach(function (kv) { if (config()[kv[0]] === undefined) setConfig_(kv[0], kv[1]); });
   pushSheet_();
   snoozeSheet_();
@@ -333,7 +344,7 @@ function setConfig_(cle, valeur) {
     if (String(v[i][0]) === cle) { sh.getRange(i + 1, 2).setValue(valeur); trouve = true; break; }
   }
   if (!trouve) sh.appendRow([cle, valeur]);
-  if (cle === 'heure_matin' || cle === 'heure_soir') installerDeclencheurs();
+  if (cle === 'heure_matin' || cle === 'heure_soir' || cle === 'heure_hebdo' || cle === 'jour_hebdo') installerDeclencheurs();
   return { ok: true };
 }
 
@@ -473,8 +484,38 @@ function mailSoir_() {
   envoyer_('Ménage — ' + reste.length + ' tâche(s) restante(s)', html + '</div>');
 }
 
-function mailHebdo() { if (actif_('mail_hebdo') && !enVacances_()) recap_(7, 'Récap de la semaine'); }
-function mailMensuel() { if (actif_('mail_mensuel') && !enVacances_()) recap_(30, 'Récap du mois'); }
+function mailHebdo() {
+  if (!actif_('mail_hebdo') || enVacances_()) return;
+  var html = recap_(7, 'Récap de la semaine') + planningSemaine_();
+  envoyer_('Ménage — bilan de la semaine & ce qui vient', html);
+}
+function mailMensuel() {
+  if (!actif_('mail_mensuel') || enVacances_()) return;
+  envoyer_('Récap du mois', recap_(30, 'Récap du mois'));
+}
+
+/* liste des tâches prévues sur les 7 prochains jours, jour par jour */
+function planningSemaine_() {
+  var demain = new Date(); demain.setDate(demain.getDate() + 1);
+  var noms = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  var html = '<div style="' + css_() + '"><h3 style="font-weight:500">La semaine à venir</h3>';
+  var vide = true;
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(demain); d.setDate(demain.getDate() + i);
+    var ds = ymd_(d);
+    var l = tachesDuJour_(ds);
+    if (!l.length) continue;
+    vide = false;
+    html += '<p style="margin:10px 0 2px"><b>' + noms[d.getDay()] + ' ' + d.getDate() + '</b></p><ul style="margin:0">';
+    l.forEach(function (t) {
+      html += '<li>' + t.nom + ' <span style="color:#6b7573">— ' + t.zone + ' · ' + t.duree + ' min' +
+        (t.qui ? ' · ' + t.qui : '') + '</span></li>';
+    });
+    html += '</ul>';
+  }
+  if (vide) html += '<p style="color:#6b7573">Rien de prévu.</p>';
+  return html + '</div>';
+}
 
 function recap_(jours, titre) {
   var p = paquet_();
@@ -535,7 +576,7 @@ function recap_(jours, titre) {
   html += oubliees.length
     ? oubliees.map(function (t) { return '<li>' + t.nom + '</li>'; }).join('')
     : '<li style="color:#6b7573">Aucune, tout est passé au moins une fois</li>';
-  envoyer_(titre, html + '</ul></div>');
+  return html + '</ul></div>';
 }
 
 /* ==================================================================== */

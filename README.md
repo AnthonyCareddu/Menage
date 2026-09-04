@@ -118,8 +118,12 @@ prévue. Appui long sur une tâche → détail (dernière fois, qui) + « Modifi
 
 **Config** — `personnes`, `destinataires`, `mail_quotidien`, `mail_soir`,
 `mail_hebdo`, `mail_mensuel`, `vacances`, `heure_matin`, `heure_soir`,
+`jour_hebdo`/`heure_hebdo` (jour + heure du mail hebdomadaire, ex. dimanche 19h),
 `verrou_jours` (au-delà, les jours passés sont en lecture seule ; `999` = jamais),
 `sauvegarde_hebdo`. Tout se pilote depuis l'app.
+
+Le mail hebdomadaire (Réglages → « Bilan + semaine à venir ») combine le récap des
+7 derniers jours et la liste des tâches prévues sur les 7 prochains, jour par jour.
 
 **Push** — un abonnement aux notifications par appareil (`endpoint`, clés, `qui`,
 `matin`, `soir`). Géré automatiquement ; les endpoints morts sont purgés à l'envoi.
