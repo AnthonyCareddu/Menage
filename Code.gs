@@ -53,8 +53,10 @@ function setup() {
   pushSheet_();
   snoozeSheet_();
   vapidKeys_();
+  jeton_();
   installerDeclencheurs();
   Logger.log('Base créée : ' + ss.getUrl());
+  Logger.log('Jeton d\'accès : ' + jeton_());
   return ss.getUrl();
 }
 
@@ -123,7 +125,9 @@ function migrer() {
   snoozeSheet_();
   vapidKeys_();
   installerDeclencheurs();
-  Logger.log('Migration OK — clé VAPID publique : ' + vapidKeys_().pub);
+  Logger.log('Migration OK — JETON D\'ACCÈS : ' + jeton_() +
+    '  (à coller dans l\'app > Réglages > Jeton, ou utiliser « Partager le lien »)');
+  Logger.log('Clé VAPID publique : ' + vapidKeys_().pub);
   Logger.log('Fuseau du script : ' + Session.getScriptTimeZone() +
     ' (à régler sur Europe/Paris dans Projet > Paramètres si les rappels arrivent à la mauvaise heure)');
 }
@@ -163,10 +167,25 @@ function parseYmd_(s) {
 
 /* ------------------------------------------------------------------- API */
 
+function jeton_() {
+  var t = PROP.getProperty('JETON');
+  if (!t) { t = Utilities.getUuid().replace(/-/g, ''); PROP.setProperty('JETON', t); }
+  return t;
+}
+
+/* à lancer si le jeton fuite : génère-en un nouveau (à recoller dans l'app + le lien) */
+function nouveauJeton() {
+  var t = Utilities.getUuid().replace(/-/g, '');
+  PROP.setProperty('JETON', t);
+  Logger.log('Nouveau jeton : ' + t);
+  return t;
+}
+
 function doGet(e) {
   var p = e.parameter || {};
   var out;
   try {
+    if (String(p.jeton || '') !== jeton_()) throw new Error('Accès refusé — jeton invalide');
     out = { ok: true, data: router_(p.action || 'data', p) };
   } catch (err) {
     out = { ok: false, erreur: String(err && err.message ? err.message : err) };
@@ -464,11 +483,20 @@ function recap_(jours, titre) {
   var parPersonne = {}, minutes = {}, aLheure = 0;
   var duree = {};
   p.taches.forEach(function (t) { duree[t.id] = Number(t.duree) || 0; });
+  var gens_ = String(config().personnes || '').split(',').map(function (s) { return s.trim(); }).filter(String);
   faits.forEach(function (r) {
+    if (r.retard <= 0) aLheure++;
+    var m = duree[r.id] || 0;
+    if (r.qui === 'À deux' && gens_.length) {
+      gens_.forEach(function (g) {
+        parPersonne[g] = (parPersonne[g] || 0) + 1 / gens_.length;
+        minutes[g] = (minutes[g] || 0) + m / gens_.length;
+      });
+      return;
+    }
     var q = r.qui || 'non attribué';
     parPersonne[q] = (parPersonne[q] || 0) + 1;
-    minutes[q] = (minutes[q] || 0) + (duree[r.id] || 0);
-    if (r.retard <= 0) aLheure++;
+    minutes[q] = (minutes[q] || 0) + m;
   });
 
   var attendu = 0;
@@ -492,7 +520,7 @@ function recap_(jours, titre) {
     '<b>' + accomplissement + '%</b> d\'accomplissement · <b>' + ponctualite + '%</b> dans les temps</p>' +
     '<h3 style="font-weight:500">Répartition</h3><ul>';
   Object.keys(parPersonne).forEach(function (q) {
-    html += '<li>' + q + ' — ' + parPersonne[q] + ' tâches, ' + minutes[q] + ' min</li>';
+    html += '<li>' + q + ' — ' + Math.round(parPersonne[q]) + ' tâches, ' + Math.round(minutes[q]) + ' min</li>';
   });
   html += '</ul><h3 style="font-weight:500">Jamais faites sur la période</h3><ul>';
   var vues = {};

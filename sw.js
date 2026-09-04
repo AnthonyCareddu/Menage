@@ -1,4 +1,4 @@
-const CACHE = 'menage-v4';
+const CACHE = 'menage-v5';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -43,9 +43,11 @@ self.addEventListener('push', e => {
     try {
       const api = await confValeur('api');
       const moi = await confValeur('moi');
+      const jeton = await confValeur('jeton');
       if (api) {
         const u = new URL(api);
         u.searchParams.set('action', 'digest');
+        u.searchParams.set('jeton', jeton);
         if (moi) u.searchParams.set('qui', moi);
         const j = await fetch(u.toString()).then(r => r.json());
         if (j && j.ok && j.data) { titre = j.data.titre || titre; corps = j.data.corps || ''; }

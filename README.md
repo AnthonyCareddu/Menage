@@ -52,12 +52,18 @@ les icônes) à la racine d'un dépôt GitHub, puis activez Pages dans
 Settings → Pages (source : branche `main`, dossier `/`).
 
 Sur le premier téléphone : ouvrez l'URL obtenue → **Réglages** (roue crantée) →
-collez l'URL `/exec` → Enregistrer. Puis menu du navigateur → **Ajouter à l'écran
-d'accueil**. Chacun choisit son prénom dans Réglages → « Je suis » (une question au
-1er lancement si ce n'est pas fait).
+collez l'URL `/exec` **et le jeton d'accès** (affiché par `migrer()` / `setup()`
+dans les logs) → Enregistrer. Puis menu du navigateur → **Ajouter à l'écran
+d'accueil**. Chacun choisit son prénom dans Réglages → « Je suis ».
 
 Pour l'autre personne : Réglages → **Partager le lien** envoie une URL qui contient
-déjà le serveur — elle n'a qu'à l'ouvrir et ajouter à l'écran d'accueil.
+déjà le serveur et le jeton — elle n'a qu'à l'ouvrir et ajouter à l'écran d'accueil.
+
+**Sécurité** : toute requête doit porter le bon jeton (`?jeton=…`), sinon le serveur
+répond « Accès refusé ». Ce n'est pas un contrôle par e-mail (impossible sans
+connexion Google à chaque appel, ce qui casserait la PWA) mais « qui a le lien peut
+entrer » — donne le lien de partage à ta femme et à personne d'autre. En cas de
+fuite : lance `nouveauJeton()` dans Apps Script et recolle-le partout.
 
 Pour publier une modif : `git push`, GitHub Pages se met à jour tout seul en ~1 min.
 L'app affiche un bandeau « Nouvelle version — appuyer pour recharger » quand c'est prêt.
@@ -96,8 +102,10 @@ Cinq onglets, éditables à la main si besoin.
 | `intervalle` | `14` | revient 14 jours après la dernière fois cochée |
 | `date` | `2026-09-15` | une seule fois, à cette date (réapparaît si non faite) |
 
-`qui` vide = tâche libre : celui qui coche est crédité. L'app suggère alors
-discrètement (« plutôt Alex ») la personne qui a le moins contribué sur 7 jours.
+`qui` vide = tâche libre : **celui qui coche est crédité intégralement** (dans le
+Bilan). L'app suggère alors discrètement (« plutôt Alex ») la personne qui a le
+moins contribué sur 7 jours. `qui` = **`À deux`** : le temps est réparti 50/50 dans
+le Bilan, à choisir pour les tâches vraiment faites ensemble.
 `actif` à `FAUX` = tâche mise de côté (invisible dans les vues, modifiable dans
 Réglages → Tâches).
 

@@ -268,17 +268,22 @@ const JOURS = ['dim','lun','mar','mer','jeu','ven','sam'];
 const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const MOIS_L = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
-/* lien de partage : #api=<url/exec> renseigne le serveur automatiquement */
+/* lien de partage : #api=<url>&jeton=<jeton> renseigne la connexion automatiquement */
 (function(){
-  const m = location.hash.match(/api=([^&]+)/);
-  if(m){
-    try{ localStorage.setItem('api', decodeURIComponent(m[1])); }catch(e){}
+  const g = c => (location.hash.match(new RegExp(c + '=([^&]+)')) || [])[1];
+  const a = g('api'), j = g('jeton');
+  if(a || j){
+    try{
+      if(a) localStorage.setItem('api', decodeURIComponent(a));
+      if(j) localStorage.setItem('jeton', decodeURIComponent(j));
+    }catch(e){}
     history.replaceState(null, '', location.pathname);
   }
 })();
 
 const S = {
   api: localStorage.getItem('api') || '',
+  jeton: localStorage.getItem('jeton') || '',
   moi: localStorage.getItem('moi') || '',
   data: JSON.parse(localStorage.getItem('cache') || 'null'),
   vue: 'jour',
@@ -322,6 +327,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 async function api(params){
   if(!S.api) throw new Error('Adresse du serveur non renseignée');
   const u = new URL(S.api);
+  u.searchParams.set('jeton', S.jeton);
   Object.entries(params).forEach(([k,v]) => u.searchParams.set(k,v));
   let r;
   try{ r = await fetch(u.toString()); }
@@ -336,10 +342,12 @@ async function charger(){
     S.data = await api({action:'data'});
     localStorage.setItem('cache', JSON.stringify(S.data));
     S.horsLigne = false;
+    S.erreurServeur = null;
     _serieCache = null;
     viderFile();
   }catch(e){
     S.horsLigne = true;
+    S.erreurServeur = e.reseau ? null : e.message;
   }
   statut();
   rendre();
@@ -391,6 +399,7 @@ async function viderFile(){
 function statut(){
   const n = S.queue.length;
   if(n) bandeau(n + (n > 1 ? ' modifs' : ' modif') + ' en attente — synchro au retour du réseau');
+  else if(S.erreurServeur) bandeau('Serveur : ' + S.erreurServeur);
   else if(S.horsLigne) bandeau(S.data ? 'Hors ligne — dernières données connues' : 'Impossible de joindre le serveur');
   else bandeau(null);
 }
@@ -572,6 +581,7 @@ function personnes(){
 }
 
 function couleurPersonne(nom){
+  if(nom === 'À deux') return 'var(--muted)';
   const i = personnes().indexOf(nom);
   return 'var(--p' + (i >= 0 && i < 4 ? i + 1 : 1) + ')';
 }
@@ -894,13 +904,17 @@ function statsPeriode(jours){
   });
 
   const parPersonne = {};
+  const gens = personnes();
   let aLheure = 0;
   faits.forEach(r => {
-    const q = r.qui || 'non attribué';
-    parPersonne[q] = parPersonne[q] || {n:0, min:0};
-    parPersonne[q].n++;
-    parPersonne[q].min += dureeParId[r.id] || 0;
     if((Number(r.retard)||0) <= 0) aLheure++;
+    const m = dureeParId[r.id] || 0;
+    const cibles = (r.qui === 'À deux' && gens.length) ? gens : [r.qui || 'non attribué'];
+    cibles.forEach(q => {
+      parPersonne[q] = parPersonne[q] || {n:0, min:0};
+      parPersonne[q].n += 1 / cibles.length;
+      parPersonne[q].min += m / cibles.length;
+    });
   });
 
   let attendu = 0;
@@ -948,7 +962,7 @@ function vBilan(v){
   const humains = noms.filter(q => q !== 'non attribué');
   if(humains.length >= 2 && total){
     const plus = humains[0], moins = humains[humains.length-1];
-    const e = st.parPersonne[plus][base] - st.parPersonne[moins][base];
+    const e = Math.round(st.parPersonne[plus][base] - st.parPersonne[moins][base]);
     const seuil = base === 'min' ? 15 : 2;
     ecartTxt = e < seuil
       ? '<p class="aide">Réparti à peu près également.</p>'
@@ -966,7 +980,7 @@ function vBilan(v){
     <div class="barre">${segments}</div>
     ${noms.map(q => `<div class="champ" style="padding:6px 0">
       <span><span class="puce" style="background:${coul(q)}"></span>${esc(q)}</span>
-      <span class="aide" style="margin:0">${st.parPersonne[q].n} tâches · ${st.parPersonne[q].min} min${total?' · '+Math.round(st.parPersonne[q][base]/total*100)+'%':''}</span>
+      <span class="aide" style="margin:0">${Math.round(st.parPersonne[q].n)} tâches · ${Math.round(st.parPersonne[q].min)} min${total?' · '+Math.round(st.parPersonne[q][base]/total*100)+'%':''}</span>
     </div>`).join('')}
     ${totalN ? '' : '<p class="aide">Rien de coché sur la période.</p>'}
   </div>
@@ -995,11 +1009,12 @@ function vReglages(v){
   const gens = personnes();
   v.innerHTML = `
   <div class="bloc">
-    <h2>Serveur</h2>
-    <p class="aide">L'adresse en /exec donnée par Apps Script au déploiement.</p>
+    <h2>Connexion</h2>
+    <p class="aide">L'adresse en /exec du déploiement Apps Script, et le jeton d'accès affiché par <code>migrer()</code>.</p>
     <div class="champ"><input type="text" class="large" id="api" placeholder="https://script.google.com/…/exec"></div>
+    <div class="champ"><input type="text" class="large" id="jeton" placeholder="jeton d'accès"></div>
     <button class="btn" id="saveApi">Enregistrer et charger</button>
-    ${S.api ? '<button class="btn sec" id="partager">Partager le lien (avec le serveur)</button>' : ''}
+    ${S.api && S.jeton ? '<button class="btn sec" id="partager">Partager le lien</button>' : ''}
   </div>
   ${(_installEvt && !matchMedia('(display-mode: standalone)').matches) ? `<div class="bloc">
     <h2>Installer</h2>
@@ -1057,12 +1072,16 @@ function vReglages(v){
   </div>`;
 
   const api_ = v.querySelector('#api'); api_.value = S.api;
+  const jt_ = v.querySelector('#jeton'); jt_.value = S.jeton;
   v.querySelector('#saveApi').onclick = () => {
-    S.api = api_.value.trim(); localStorage.setItem('api', S.api); majConf(); charger();
+    S.api = api_.value.trim(); S.jeton = jt_.value.trim();
+    localStorage.setItem('api', S.api); localStorage.setItem('jeton', S.jeton);
+    S.erreurServeur = null; majConf(); charger();
   };
   const pb = v.querySelector('#partager');
   if(pb) pb.onclick = async () => {
-    const url = location.origin + location.pathname + '#api=' + encodeURIComponent(S.api);
+    const url = location.origin + location.pathname +
+      '#api=' + encodeURIComponent(S.api) + '&jeton=' + encodeURIComponent(S.jeton);
     try{
       if(navigator.share) await navigator.share({ title:'Ménage', url });
       else { await navigator.clipboard.writeText(url); toast('Lien copié'); }
@@ -1133,6 +1152,7 @@ async function majConf(){
     const c = await caches.open('conf');
     await c.put('api', new Response(S.api || ''));
     await c.put('moi', new Response(S.moi || ''));
+    await c.put('jeton', new Response(S.jeton || ''));
   }catch(e){}
 }
 
@@ -1256,7 +1276,7 @@ function editeurTache(v){
   <div class="bloc">
     <div class="champ"><input type="text" class="large" id="e_nom" placeholder="Nom de la tâche"></div>
     <div class="champ"><input type="text" id="e_zone" placeholder="Zone"><input type="number" id="e_duree" placeholder="min" style="max-width:30%"></div>
-    <div class="champ"><span>Pour</span><select id="e_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}</select></div>
+    <div class="champ"><span>Pour</span><select id="e_qui"><option value="">Libre</option>${gens.map(g=>`<option>${g}</option>`).join('')}<option>À deux</option></select></div>
     <div class="champ"><span>Revient</span><select id="e_mode">
       <option value="quotidien">tous les jours</option>
       <option value="jours">certains jours</option>
