@@ -190,6 +190,10 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 .btn:active{transform:scale(.985)}
 .btn.sec{background:none;color:var(--accent)}
 .btn.danger{background:none;border-color:color-mix(in srgb,var(--err) 45%,transparent);color:var(--err)}
+.joursGrille{display:flex;gap:6px;width:100%}
+.jourBtn{flex:1;border:1.5px solid var(--line);background:none;color:var(--muted);
+  border-radius:10px;padding:10px 0;font-size:12.5px;font-weight:700}
+.jourBtn.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .themes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
 .theme-chip{display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid var(--line);
   border-radius:12px;background:none;color:var(--ink);font-weight:600;font-size:13.5px}
@@ -265,6 +269,8 @@ h2{font-size:14px;font-weight:700;margin:0 0 4px}
 
 <script>
 const JOURS = ['dim','lun','mar','mer','jeu','ven','sam'];
+const ORDRE_J = ['lun','mar','mer','jeu','ven','sam','dim'];
+const LABEL_J = {lun:'L', mar:'Ma', mer:'Me', jeu:'J', ven:'V', sam:'S', dim:'D'};
 const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
 const MOIS_L = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
@@ -1284,6 +1290,9 @@ function editeurTache(v){
       <option value="intervalle">tous les N jours</option>
       <option value="date">une seule fois</option></select></div>
     <div class="champ" id="e_regle_champ"><input type="text" class="large" id="e_regle"></div>
+    <div class="champ" id="e_jours_champ" hidden>
+      <div class="joursGrille">${ORDRE_J.map(j => `<button type="button" class="jourBtn" data-j="${j}">${LABEL_J[j]}</button>`).join('')}</div>
+    </div>
     <p class="aide" id="e_aide"></p>
     <div class="champ"><span>Active</span><span class="sw" id="e_actif"><i></i></span></div>
     <div class="err" id="e_err"></div>
@@ -1302,23 +1311,31 @@ function editeurTache(v){
   actif.classList.toggle('on', estActif(t));
   actif.onclick = () => actif.classList.toggle('on');
 
+  const jc = $('e_jours_champ');
   const majAide = garder => {
     const m = mode.value;
-    $('e_regle_champ').hidden = (m === 'quotidien');
+    jc.hidden = (m !== 'jours');
+    $('e_regle_champ').hidden = (m === 'quotidien' || m === 'jours');
     if(m === 'quotidien'){
       aide.textContent = 'La tâche revient chaque jour.';
+    } else if(m === 'jours'){
+      aide.textContent = 'Touche les jours concernés.';
     } else if(m === 'date'){
       regle.type = 'date';
       aide.textContent = 'Le jour où la tâche doit être faite une fois.';
     } else {
       regle.type = 'text';
-      regle.placeholder = m==='jours' ? 'lun,jeu' : m==='mois' ? '1' : '14';
-      aide.textContent = m==='jours' ? 'Codes : lun, mar, mer, jeu, ven, sam, dim.'
-        : m==='mois' ? 'Le jour du mois, entre 1 et 31.' : 'Nombre de jours entre deux fois.';
+      regle.placeholder = m==='mois' ? '1' : '14';
+      aide.textContent = m==='mois' ? 'Le jour du mois, entre 1 et 31.' : 'Nombre de jours entre deux fois.';
     }
-    if(!garder) regle.value = '';
+    if(!garder){ regle.value = ''; jc.querySelectorAll('.jourBtn').forEach(b => b.classList.remove('on')); }
   };
   regle.value = t.regle || '';
+  if(t.mode === 'jours'){
+    String(t.regle||'').split(',').map(s=>s.trim()).forEach(j =>
+      jc.querySelector(`[data-j="${j}"]`)?.classList.add('on'));
+  }
+  jc.querySelectorAll('.jourBtn').forEach(b => b.onclick = () => b.classList.toggle('on'));
   majAide(true);
   mode.onchange = () => majAide(false);
 
@@ -1344,11 +1361,11 @@ function editeurTache(v){
     const err = $('e_err');
     const nom = $('e_nom').value.trim();
     const m = mode.value;
-    const r = m === 'quotidien' ? '' : regle.value.trim();
+    const jours = ORDRE_J.filter(j => jc.querySelector(`[data-j="${j}"]`).classList.contains('on'));
+    const r = m === 'quotidien' ? '' : m === 'jours' ? jours.join(',') : regle.value.trim();
     if(!nom){ err.textContent = 'Donnez un nom à la tâche.'; return; }
-    if(m !== 'quotidien' && !r){ err.textContent = 'Renseignez la récurrence.'; return; }
-    if(m==='jours' && !r.split(',').every(x=>JOURS.includes(x.trim()))){
-      err.textContent = 'Jours invalides. Exemple : lun,jeu'; return; }
+    if(m === 'jours' && !jours.length){ err.textContent = 'Touche au moins un jour.'; return; }
+    if(m !== 'quotidien' && m !== 'jours' && !r){ err.textContent = 'Renseignez la récurrence.'; return; }
     if((m==='mois' || m==='intervalle') && !/^\d+$/.test(r)){
       err.textContent = 'Attendu : un nombre.'; return; }
     if(m==='mois' && (+r < 1 || +r > 31)){ err.textContent = 'Jour du mois entre 1 et 31.'; return; }
