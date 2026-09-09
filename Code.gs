@@ -463,7 +463,7 @@ function envoyer_(sujet, html) {
 
 var MAIL_ = {
   bg: '#f0e9e0', card: '#ffffff', ink: '#28221d', muted: '#8f847a',
-  line: '#ebe3d9', accent: '#bd6a43', warn: '#b8730f', ok: '#5b7f56'
+  line: '#ebe3d9', accent: '#bd6a43', warn: '#b8730f', ok: '#5b7f56', tint: '#f6ece5'
 };
 var MOIS_FR_ = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
   'août', 'septembre', 'octobre', 'novembre', 'décembre'];
@@ -591,32 +591,42 @@ function mailSoir_() {
     coque_('Le point du soir', cap_(dateLongueFr_(d)), corps));
 }
 
-function mailHebdo() {
-  if (!actif_('mail_hebdo') || enVacances_()) return;
+function mailHebdo() { if (!actif_('mail_hebdo') || enVacances_()) return; hebdoMail_(); }
+function mailMensuel() { if (!actif_('mail_mensuel') || enVacances_()) return; mensuelMail_(); }
+
+function hebdoMail_() {
   var corps = recapCorps_(7) + section_('La semaine à venir') + planningCorps_();
   envoyer_('Ménage · bilan de la semaine',
     coque_('Bilan de la semaine', periodeFr_(7) + ' · et les 7 jours à venir', corps));
 }
-function mailMensuel() {
-  if (!actif_('mail_mensuel') || enVacances_()) return;
+function mensuelMail_() {
   envoyer_('Ménage · bilan du mois', coque_('Bilan du mois', periodeFr_(30), recapCorps_(30)));
 }
 
-/* tâches prévues sur les 7 prochains jours, groupées par jour */
+/* aperçus à lancer depuis l'éditeur — ignorent les interrupteurs on/off */
+function testMailMatin() { mailMatin_(); Logger.log('Envoyé s\'il reste au moins 1 tâche à faire aujourd\'hui.'); }
+function testMailSoir() { mailSoir_(); Logger.log('Envoyé s\'il y a au moins 1 tâche prévue aujourd\'hui.'); }
+function testMailHebdo() { hebdoMail_(); Logger.log('Bilan hebdo envoyé à ' + config().destinataires); }
+function testMailMensuel() { mensuelMail_(); Logger.log('Bilan mensuel envoyé à ' + config().destinataires); }
+
+/* tâches prévues sur les 7 prochains jours, un bandeau par jour */
 function planningCorps_() {
   var demain = new Date(); demain.setDate(demain.getDate() + 1);
-  var out = '', vide = true;
+  var m = MAIL_, blocs = [];
   for (var i = 0; i < 7; i++) {
     var d = new Date(demain); d.setDate(demain.getDate() + i);
     var l = tachesDuJour_(ymd_(d));
     if (!l.length) continue;
-    vide = false;
-    out += '<div style="margin:14px 0 2px;font-weight:600;color:' + MAIL_.ink + '">' +
+    blocs.push(
+      '<div style="margin:' + (blocs.length ? 20 : 8) + 'px 0 0;padding:7px 11px;background:' + m.tint +
+      ';border-radius:8px;font-size:15px;font-weight:700;color:' + m.accent + '">' +
       cap_(JOURS_FR_[d.getDay()]) + ' ' + d.getDate() +
-      ' <span style="font-weight:400;color:' + MAIL_.muted + '">· ' + l.length + '</span></div>' +
-      listeTaches_(l, {});
+      ' <span style="font-weight:500;color:' + m.muted + '">&nbsp;·&nbsp;' + l.length +
+      ' tâche' + (l.length > 1 ? 's' : '') + '</span></div>' +
+      '<div style="padding:0 11px">' + listeTaches_(l, {}) + '</div>'
+    );
   }
-  return vide ? '<div style="color:' + MAIL_.muted + '">Rien de prévu.</div>' : out;
+  return blocs.length ? blocs.join('') : '<div style="color:' + m.muted + '">Rien de prévu.</div>';
 }
 
 function recapCorps_(jours) {
