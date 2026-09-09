@@ -1,4 +1,4 @@
-const CACHE = 'menage-v5';
+const CACHE = 'menage-v6';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -36,6 +36,42 @@ async function confValeur(cle) {
   const r = await c.match(cle);
   return r ? r.text() : '';
 }
+
+function b64urlU8(s) {
+  const b = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
+  const u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+
+/* le navigateur a fait tourner l'abonnement pendant que l'app était fermée :
+   on se réabonne avec la clé VAPID mise en cache et on prévient le serveur. */
+self.addEventListener('pushsubscriptionchange', e => {
+  e.waitUntil((async () => {
+    const api = await confValeur('api');
+    const jeton = await confValeur('jeton');
+    const vapid = await confValeur('vapid');
+    if (!api || !vapid) return;
+    let sub;
+    try {
+      sub = await self.registration.pushManager.subscribe({
+        userVisibleOnly: true, applicationServerKey: b64urlU8(vapid)
+      });
+    } catch (err) { return; }
+    const j = sub.toJSON();
+    const moi = await confValeur('moi');
+    const u = new URL(api);
+    u.searchParams.set('action', 'subscribePush');
+    u.searchParams.set('jeton', jeton);
+    u.searchParams.set('endpoint', j.endpoint);
+    u.searchParams.set('p256dh', j.keys.p256dh);
+    u.searchParams.set('auth', j.keys.auth);
+    if (moi) u.searchParams.set('qui', moi);
+    u.searchParams.set('matin', (await confValeur('notif_matin')) === 'non' ? 'non' : 'oui');
+    u.searchParams.set('soir', (await confValeur('notif_soir')) === 'non' ? 'non' : 'oui');
+    await fetch(u.toString()).catch(() => {});
+  })());
+});
 
 self.addEventListener('push', e => {
   e.waitUntil((async () => {

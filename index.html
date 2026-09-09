@@ -1204,7 +1204,32 @@ async function majConf(){
     await c.put('api', new Response(S.api || ''));
     await c.put('moi', new Response(S.moi || ''));
     await c.put('jeton', new Response(S.jeton || ''));
+    await c.put('notif_matin', new Response(localStorage.getItem('notif_matin') === 'non' ? 'non' : 'oui'));
+    await c.put('notif_soir',  new Response(localStorage.getItem('notif_soir')  === 'non' ? 'non' : 'oui'));
   }catch(e){}
+}
+
+/* à chaque ouverture : si les notifs étaient activées, on vérifie que
+   l'abonnement existe encore (le navigateur les fait expirer) et on le
+   repousse au serveur — sinon on redevient silencieusement injoignable. */
+async function resyncNotifs(reg){
+  try{
+    if(localStorage.getItem('notifs') !== '1' || !S.api) return;
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+    let sub = await reg.pushManager.getSubscription();
+    let vapidEnCache = '';
+    try{ vapidEnCache = await caches.open('conf').then(c => c.match('vapid')).then(r => r ? r.text() : ''); }catch(e){}
+    if(!sub || !vapidEnCache){
+      const cle = await api({action:'vapidPublic'});
+      try{ await caches.open('conf').then(c => c.put('vapid', new Response(cle))); }catch(e){}
+      if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: b64urlToU8(cle) });
+    }
+    const j = sub.toJSON();
+    await envoyer({ action:'subscribePush', endpoint:j.endpoint,
+      p256dh:j.keys.p256dh, auth:j.keys.auth, qui:S.moi || '',
+      matin: localStorage.getItem('notif_matin') === 'non' ? 'non' : 'oui',
+      soir:  localStorage.getItem('notif_soir')  === 'non' ? 'non' : 'oui' });
+  }catch(e){ /* silencieux : nouvel essai à la prochaine ouverture */ }
 }
 
 async function majEtatNotifs(v){
@@ -1268,6 +1293,7 @@ async function activerNotifs(v){
     if(perm !== 'granted'){ dire('Permission refusée.'); return; }
     const reg = await navigator.serviceWorker.ready;
     const cle = await api({action:'vapidPublic'});
+    try{ await caches.open('conf').then(c => c.put('vapid', new Response(cle))); }catch(e){}
     let sub = await reg.pushManager.getSubscription();
     if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: b64urlToU8(cle) });
     const j = sub.toJSON();
@@ -1438,6 +1464,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => aller(b.d
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => {
     majConf();
+    navigator.serviceWorker.ready.then(r => resyncNotifs(r));
     reg.addEventListener('updatefound', () => {
       const nv = reg.installing;
       if(!nv) return;
