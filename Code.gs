@@ -459,8 +459,90 @@ function envoyer_(sujet, html) {
   MailApp.sendEmail({ to: dest, subject: sujet, htmlBody: html });
 }
 
-function css_() {
-  return 'font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#14181b;line-height:1.6';
+/* ---- briques e-mail : styles inline, rendu Gmail / Apple Mail ---- */
+
+var MAIL_ = {
+  bg: '#f0e9e0', card: '#ffffff', ink: '#28221d', muted: '#8f847a',
+  line: '#ebe3d9', accent: '#bd6a43', warn: '#b8730f', ok: '#5b7f56'
+};
+var MOIS_FR_ = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
+  'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+var JOURS_FR_ = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+function cap_(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function dateLongueFr_(d) { return JOURS_FR_[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS_FR_[d.getMonth()]; }
+function periodeFr_(jours) {
+  var fin = new Date(), debut = new Date(); debut.setDate(fin.getDate() - jours);
+  var f = function (x) { return x.getDate() + ' ' + MOIS_FR_[x.getMonth()]; };
+  return 'du ' + f(debut) + ' au ' + f(fin);
+}
+
+/* enveloppe : carte centrée, en-tête, pied */
+function coque_(titre, sousTitre, corps) {
+  var m = MAIL_;
+  var police = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  return '<div style="margin:0;padding:0;background:' + m.bg + '">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + m.bg + ';width:100%">' +
+    '<tr><td align="center" style="padding:24px 12px">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:' + m.card +
+    ';border:1px solid ' + m.line + ';border-radius:16px;overflow:hidden;font-family:' + police + '">' +
+    '<tr><td style="height:4px;line-height:4px;font-size:4px;background:' + m.accent + '">&nbsp;</td></tr>' +
+    '<tr><td style="padding:22px 26px 0">' +
+    '<div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:' + m.muted + '">Ménage</div>' +
+    '<div style="margin:6px 0 2px;font-size:21px;font-weight:600;color:' + m.ink + '">' + titre + '</div>' +
+    (sousTitre ? '<div style="font-size:14px;color:' + m.muted + '">' + sousTitre + '</div>' : '') +
+    '</td></tr>' +
+    '<tr><td style="padding:16px 26px 24px;color:' + m.ink + ';font-size:15px;line-height:1.5">' + corps + '</td></tr>' +
+    '<tr><td style="padding:13px 26px;background:' + m.bg + ';border-top:1px solid ' + m.line +
+    ';font-size:12px;color:' + m.muted + '">Heures et fréquence des envois réglables dans l\'app · Réglages.</td></tr>' +
+    '</table></td></tr></table></div>';
+}
+
+function section_(t) {
+  return '<div style="margin:22px 0 6px;font-size:12px;font-weight:700;letter-spacing:.06em;' +
+    'text-transform:uppercase;color:' + MAIL_.muted + '">' + t + '</div>';
+}
+
+function chiffres_(items) {
+  var m = MAIL_;
+  return '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' + items.map(function (it) {
+    return '<td style="padding:6px 24px 6px 0;vertical-align:top">' +
+      '<div style="font-size:25px;font-weight:700;color:' + m.ink + ';line-height:1.15">' + it.n + '</div>' +
+      '<div style="font-size:12px;color:' + m.muted + '">' + it.l + '</div></td>';
+  }).join('') + '</tr></table>';
+}
+
+function barre_(pct, couleur) {
+  var m = MAIL_;
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:5px 0">' +
+    '<tr><td style="background:' + m.line + ';border-radius:7px;height:10px;line-height:10px;font-size:10px">' +
+    '<div style="width:' + pct + '%;min-width:2%;background:' + (couleur || m.accent) +
+    ';height:10px;border-radius:7px">&nbsp;</div></td></tr></table>';
+}
+
+function ligneTache_(t, o) {
+  o = o || {};
+  var m = MAIL_;
+  var meta = [t.zone, (t.duree || 0) + ' min'].concat(t.qui ? [t.qui] : []).join(' · ');
+  var badge = (o.retard && t.retard > 0)
+    ? ' <span style="display:inline-block;background:' + m.warn + ';color:#fff;font-size:11px;' +
+      'font-weight:600;padding:1px 6px;border-radius:5px">+' + t.retard + ' j</span>' : '';
+  var puce = o.fait
+    ? '<span style="color:' + m.ok + ';font-weight:700">&#10003;</span> '
+    : '<span style="color:' + m.accent + '">&bull;</span> ';
+  var nom = o.fait
+    ? '<span style="color:' + m.muted + '">' + t.nom + '</span>'
+    : '<span style="font-weight:600;color:' + m.ink + '">' + t.nom + '</span>';
+  return '<tr><td style="padding:9px 0;border-bottom:1px solid ' + m.line + '">' + puce + nom + badge +
+    '<div style="font-size:12px;color:' + m.muted + ';padding-left:15px;margin-top:1px">' + meta + '</div>' +
+    '</td></tr>';
+}
+
+function listeTaches_(taches, o) {
+  if (!taches.length) return '';
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
+    taches.map(function (t) { return ligneTache_(t, o); }).join('') + '</table>';
 }
 
 /* déclenché le matin : notification push + (option) e-mail */
@@ -478,72 +560,66 @@ function digestSoir() {
 }
 
 function mailMatin_() {
-  var today = ymd_(new Date());
-  var l = tachesDuJour_(today).filter(function (t) { return !t.faite; });
+  var d = new Date();
+  var l = tachesDuJour_(ymd_(d)).filter(function (t) { return !t.faite; });
   if (!l.length) return;
-  var min = l.reduce(function (s, t) { return s + t.duree; }, 0);
-  var html = '<div style="' + css_() + '"><h2 style="font-weight:500">Ménage du jour</h2>' +
-    '<p style="color:#6b7573">' + l.length + ' tâches · ' + min + ' min</p><ul>';
-  l.forEach(function (t) {
-    html += '<li>' + t.nom + ' <span style="color:#6b7573">— ' + t.zone + ' · ' + t.duree + ' min' +
-      (t.qui ? ' · ' + t.qui : '') + '</span>' +
-      (t.retard > 0 ? ' <b style="color:#b8730f">+' + t.retard + ' j</b>' : '') + '</li>';
-  });
-  envoyer_('Ménage — ' + l.length + ' tâches aujourd\'hui', html + '</ul></div>');
+  var min = l.reduce(function (s, t) { return s + (t.duree || 0); }, 0);
+  var corps = chiffres_([
+    { n: l.length, l: l.length > 1 ? 'tâches' : 'tâche' },
+    { n: min + ' min', l: 'au total' }
+  ]) + section_('À faire') + listeTaches_(l, { retard: true });
+  envoyer_('Ménage · ' + l.length + (l.length > 1 ? ' tâches' : ' tâche') + ' aujourd\'hui',
+    coque_('Les tâches du jour', cap_(dateLongueFr_(d)), corps));
 }
 
 function mailSoir_() {
-  var today = ymd_(new Date());
-  var l = tachesDuJour_(today);
+  var d = new Date();
+  var l = tachesDuJour_(ymd_(d));
   if (!l.length) return;
   var faites = l.filter(function (t) { return t.faite; });
   var reste = l.filter(function (t) { return !t.faite; });
-  var html = '<div style="' + css_() + '"><h2 style="font-weight:500">Ménage — ce soir</h2>' +
-    '<p style="color:#6b7573">' + faites.length + ' faites · ' + reste.length + ' à faire</p>';
-  if (reste.length) {
-    html += '<ul>' + reste.map(function (t) {
-      return '<li>' + t.nom + (t.retard > 0 ? ' <b style="color:#b8730f">+' + t.retard + ' j</b>' : '') + '</li>';
-    }).join('') + '</ul>';
-  } else {
-    html += '<p>Tout est fait pour aujourd\'hui.</p>';
-  }
-  envoyer_('Ménage — ' + reste.length + ' tâche(s) restante(s)', html + '</div>');
+  var corps = chiffres_([
+    { n: faites.length, l: 'faite' + (faites.length > 1 ? 's' : '') },
+    { n: reste.length, l: 'à faire' }
+  ]) + barre_(faites.length / l.length * 100, MAIL_.ok);
+  if (reste.length) corps += section_('Reste à faire') + listeTaches_(reste, { retard: true });
+  else corps += '<div style="margin-top:16px;color:' + MAIL_.ok + ';font-weight:600">Tout est fait pour aujourd\'hui.</div>';
+  if (faites.length) corps += section_('Fait aujourd\'hui') + listeTaches_(faites, { fait: true });
+  envoyer_('Ménage · ' + (reste.length
+    ? reste.length + ' tâche' + (reste.length > 1 ? 's' : '') + ' en attente'
+    : 'tout est fait ce soir'),
+    coque_('Le point du soir', cap_(dateLongueFr_(d)), corps));
 }
 
 function mailHebdo() {
   if (!actif_('mail_hebdo') || enVacances_()) return;
-  var html = recap_(7, 'Récap de la semaine') + planningSemaine_();
-  envoyer_('Ménage — bilan de la semaine & ce qui vient', html);
+  var corps = recapCorps_(7) + section_('La semaine à venir') + planningCorps_();
+  envoyer_('Ménage · bilan de la semaine',
+    coque_('Bilan de la semaine', periodeFr_(7) + ' · et les 7 jours à venir', corps));
 }
 function mailMensuel() {
   if (!actif_('mail_mensuel') || enVacances_()) return;
-  envoyer_('Récap du mois', recap_(30, 'Récap du mois'));
+  envoyer_('Ménage · bilan du mois', coque_('Bilan du mois', periodeFr_(30), recapCorps_(30)));
 }
 
-/* liste des tâches prévues sur les 7 prochains jours, jour par jour */
-function planningSemaine_() {
+/* tâches prévues sur les 7 prochains jours, groupées par jour */
+function planningCorps_() {
   var demain = new Date(); demain.setDate(demain.getDate() + 1);
-  var noms = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-  var html = '<div style="' + css_() + '"><h3 style="font-weight:500">La semaine à venir</h3>';
-  var vide = true;
+  var out = '', vide = true;
   for (var i = 0; i < 7; i++) {
     var d = new Date(demain); d.setDate(demain.getDate() + i);
-    var ds = ymd_(d);
-    var l = tachesDuJour_(ds);
+    var l = tachesDuJour_(ymd_(d));
     if (!l.length) continue;
     vide = false;
-    html += '<p style="margin:10px 0 2px"><b>' + noms[d.getDay()] + ' ' + d.getDate() + '</b></p><ul style="margin:0">';
-    l.forEach(function (t) {
-      html += '<li>' + t.nom + ' <span style="color:#6b7573">— ' + t.zone + ' · ' + t.duree + ' min' +
-        (t.qui ? ' · ' + t.qui : '') + '</span></li>';
-    });
-    html += '</ul>';
+    out += '<div style="margin:14px 0 2px;font-weight:600;color:' + MAIL_.ink + '">' +
+      cap_(JOURS_FR_[d.getDay()]) + ' ' + d.getDate() +
+      ' <span style="font-weight:400;color:' + MAIL_.muted + '">· ' + l.length + '</span></div>' +
+      listeTaches_(l, {});
   }
-  if (vide) html += '<p style="color:#6b7573">Rien de prévu.</p>';
-  return html + '</div>';
+  return vide ? '<div style="color:' + MAIL_.muted + '">Rien de prévu.</div>' : out;
 }
 
-function recap_(jours, titre) {
+function recapCorps_(jours) {
   var p = paquet_();
   var taches = p.taches.filter(estActif_);
   var fin = new Date(), debut = new Date();
@@ -588,21 +664,34 @@ function recap_(jours, titre) {
   var ponctualite = faits.length ? Math.round(aLheure / faits.length * 100) : 0;
   var accomplissement = Math.min(100, Math.round(faits.length / attendu * 100));
 
-  var html = '<div style="' + css_() + '"><h2 style="font-weight:500">' + titre + '</h2>' +
-    '<p><b>' + faits.length + '</b> tâches faites sur environ ' + attendu + ' prévues · ' +
-    '<b>' + accomplissement + '%</b> d\'accomplissement · <b>' + ponctualite + '%</b> dans les temps</p>' +
-    '<h3 style="font-weight:500">Répartition</h3><ul>';
-  Object.keys(parPersonne).forEach(function (q) {
-    html += '<li>' + q + ' — ' + Math.round(parPersonne[q]) + ' tâches, ' + Math.round(minutes[q]) + ' min</li>';
-  });
-  html += '</ul><h3 style="font-weight:500">Jamais faites sur la période</h3><ul>';
+  var corps = chiffres_([
+    { n: faits.length, l: 'tâches faites' },
+    { n: accomplissement + '%', l: 'sur ~' + attendu + ' prévues' },
+    { n: ponctualite + '%', l: 'dans les temps' }
+  ]) + barre_(accomplissement);
+
+  var noms = Object.keys(parPersonne);
+  if (noms.length) {
+    var maxMin = Math.max.apply(null, noms.map(function (q) { return minutes[q]; })) || 1;
+    corps += section_('Qui a fait quoi');
+    noms.sort(function (a, b) { return minutes[b] - minutes[a]; }).forEach(function (q) {
+      corps += '<div style="margin-top:10px">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        '<td style="font-weight:600;color:' + MAIL_.ink + '">' + q + '</td>' +
+        '<td align="right" style="font-size:13px;color:' + MAIL_.muted + '">' +
+        Math.round(parPersonne[q]) + ' tâches · ' + Math.round(minutes[q]) + ' min</td>' +
+        '</tr></table>' + barre_(minutes[q] / maxMin * 100) + '</div>';
+    });
+  }
+
   var vues = {};
   faits.forEach(function (r) { vues[r.id] = 1; });
   var oubliees = taches.filter(function (t) { return !vues[t.id]; });
-  html += oubliees.length
-    ? oubliees.map(function (t) { return '<li>' + t.nom + '</li>'; }).join('')
-    : '<li style="color:#6b7573">Aucune, tout est passé au moins une fois</li>';
-  return html + '</ul></div>';
+  corps += section_('Pas passées cette période');
+  corps += oubliees.length
+    ? listeTaches_(oubliees, {})
+    : '<div style="color:' + MAIL_.ok + '">Rien — chaque tâche a été faite au moins une fois.</div>';
+  return corps;
 }
 
 /* ==================================================================== */
