@@ -88,6 +88,32 @@ function installerDeclencheurs() {
   ScriptApp.newTrigger('sauvegarde').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
 }
 
+/* diagnostic notifications : lancer depuis l'éditeur, lire les logs (rien de secret dedans).
+   Envoie aussi un vrai push matin + soir par le chemin exact des déclencheurs. */
+function diag() {
+  var c = config(), tz = Session.getScriptTimeZone();
+  Logger.log('Fuseau : ' + tz + '  —  maintenant : ' + Utilities.formatDate(new Date(), tz, 'EEE dd/MM HH:mm'));
+  Logger.log('vacances=' + c.vacances + '  heure_matin=' + c.heure_matin + '  heure_soir=' + c.heure_soir +
+    '  jour_hebdo=' + c.jour_hebdo + '  heure_hebdo=' + c.heure_hebdo);
+
+  var trs = ScriptApp.getProjectTriggers();
+  Logger.log(trs.length + ' déclencheur(s) : ' + trs.map(function (t) { return t.getHandlerFunction(); }).join(', '));
+
+  var subs = pushSubs_();
+  Logger.log(subs.length + ' abonnement(s) push :');
+  subs.forEach(function (s) {
+    Logger.log('  · ' + (s.qui || '?') + '  matin=' + s.matin + ' soir=' + s.soir +
+      '  ' + String(s.endpoint).slice(0, 40) + '…');
+  });
+
+  if (enVacances_()) {
+    Logger.log('>>> MODE VACANCES ACTIF — digestMatin/digestSoir sortent sans rien faire. C\'est la cause.');
+    return;
+  }
+  Logger.log('digestMatin (réel) → ' + JSON.stringify(envoyerPush_('matin')));
+  Logger.log('digestSoir  (réel) → ' + JSON.stringify(envoyerPush_('soir')));
+}
+
 /* copie datée du Sheet dans un dossier "sauvegardes" à côté du Sheet, garde les 4 dernières */
 function sauvegarde() {
   if (String(config().sauvegarde_hebdo || 'oui').toLowerCase() === 'non') return;
